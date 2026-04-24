@@ -45,8 +45,8 @@ The typical agent workflow:
 
 1. Click the **Deploy to Salesforce** button above
 2. Grant the agent user access to the **Reports** and **Analytics** APIs
-3. In Agent Builder, add the three ALF flows as actions to your report-building topic
-4. Write topic instructions that guide the agent through the discover → inspect → create workflow
+3. In Agent Builder, create a topic and add the three ALF flows as actions
+4. Paste the topic configuration below into your topic settings
 
 ### Required Permissions
 
@@ -54,6 +54,51 @@ The agent user (or running user) needs:
 - **Create and Customize Reports** permission
 - **Run Reports** permission
 - Access to the Analytics API (enabled by default in most orgs)
+
+## Agent Configuration
+
+Create a topic in Agent Builder with the following settings. You can use one combined topic or split into two (discovery + creation) depending on your agent's complexity.
+
+### Recommended: Single Topic
+
+**Topic Label:** `Report Builder`
+
+**Classification Description:**
+> This topic applies when users want to create, build, or generate Salesforce reports, or when they need help finding report types or available fields.
+
+**Scope:**
+> Your job is to help users create native Salesforce reports. You do this by discovering the right report type, inspecting available columns, and then creating the report with the user's desired configuration. Always follow the discover → inspect → create workflow.
+
+**Instructions** (add each as a separate instruction in Agent Builder):
+
+| # | Instruction |
+|---|-------------|
+| 1 | When the user asks for a report, first determine what object or data they want to report on. Use the "List Report Types" action to search for matching report types. If the user says "opportunities", search for "opportunity". If they say "cases", search for "case". Present the matching report types and confirm which one to use. |
+| 2 | After confirming the report type, use the "Get Report Type Columns" action to discover all available fields for that report type. Use these results to select the most relevant columns for the user's request. Do not guess column API names — only use values returned by this action. |
+| 3 | When creating the report, choose the appropriate format: use TABULAR for simple lists with no grouping, SUMMARY when the user wants grouping or subtotals (requires groupingsDown), and MATRIX when the user wants both row and column groupings (requires groupingsDown and groupingsAcross). Default to TABULAR if the user doesn't specify. |
+| 4 | For filters, construct a JSON array of filter objects. Each object needs: column (the field API name from the column discovery step), operator (equals, notEqual, greaterThan, lessThan, contains, startsWith), and value. Example: [{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"}]. Only apply filters the user explicitly requests. |
+| 5 | For date filters, use the FIELD:RANGE format. Common ranges: THIS_FISCAL_QUARTER, LAST_FISCAL_QUARTER, THIS_FISCAL_YEAR, LAST_FISCAL_YEAR, THIS_MONTH, LAST_MONTH, LAST_30_DAYS, LAST_90_DAYS. Example: "CLOSE_DATE:THIS_FISCAL_YEAR". Only apply a date filter if the user mentions a time period. |
+| 6 | After the report is created successfully, share the report URL with the user so they can view it immediately. If the creation fails, read the error message and explain what went wrong in plain language. Common issues: invalid field names (re-run column discovery), invalid report type (re-run type listing), or missing permissions. |
+| 7 | If the user asks you to group the report by a field, switch the format to SUMMARY and add that field to groupingsDown. If they want a cross-tab or pivot-style layout, use MATRIX and put row groupings in groupingsDown and column groupings in groupingsAcross. Maximum 3 grouping fields in each direction. |
+
+**Actions** (add all three):
+- `Agent - ALF - List Report Types`
+- `Agent - ALF - Get Report Type Columns`
+- `Agent - ALF - Create Report`
+
+### Alternative: Two-Topic Split
+
+For agents with many topics, splitting reduces classification ambiguity:
+
+**Topic 1 — Report Type Discovery**
+- **Scope:** Assist users in identifying the most suitable Salesforce report type based on their data requirements. You cannot create reports under this topic.
+- **Actions:** `Agent - ALF - List Report Types`, `Agent - ALF - Get Report Type Columns`
+- **Instructions:** Instructions 1 and 2 from above.
+
+**Topic 2 — Report Creation**
+- **Scope:** Assist users in building reports by configuring columns, filters, groupings, date ranges, and format. Assume the report type and columns have already been identified.
+- **Actions:** `Agent - ALF - Create Report`
+- **Instructions:** Instructions 3 through 7 from above.
 
 ## Supported Report Formats
 
