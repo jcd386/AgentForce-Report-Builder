@@ -84,6 +84,43 @@ Create a single topic in Agent Builder with the following settings.
 - `Agent - ALF - Get Report Type Columns`
 - `Agent - ALF - Create Report`
 
+### Action Field Reference
+
+When adding each action to the topic, mark the required fields and configure descriptions so the agent knows how to use them.
+
+#### Agent - ALF - List Report Types
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `filterKeyword` | String | **Yes** | Keyword to filter report types. Only types whose label or API name contain this text are returned. Case-insensitive. Example: "Opportunity" returns OpportunityList, OpportunityWithContact, etc. |
+| `maxResults` | Number | No | Maximum number of report types to return. Defaults to 50. Max 200. |
+
+**Outputs:** `reportTypesJson` (JSON array of `apiName`, `label`, `description`), `typeCount`, `success`, `errorMessage`
+
+#### Agent - ALF - Get Report Type Columns
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `reportType` | String | **Yes** | The report type API name to inspect (e.g., `CaseList`, `OpportunityList`). Get this from the List Report Types action. |
+
+**Outputs:** `columnsJson` (JSON array of `apiName`, `label`), `defaultColumnsJson` (JSON array of default column API names), `columnCount`, `success`, `errorMessage`
+
+#### Agent - ALF - Create Report
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `reportName` | String | **Yes** | Human-readable name for the report (e.g., "Open Opportunities by Stage"). Must be unique within the target folder. |
+| `reportType` | String | **Yes** | Report type API name from the List Report Types action (e.g., `OpportunityList`). |
+| `detailColumns` | String | **Yes** | Comma-separated field API names for columns. Use values from Get Report Type Columns (e.g., `ACCOUNT.NAME,OPPORTUNITY.AMOUNT,OPPORTUNITY.CLOSE_DATE`). |
+| `reportFormat` | String | No | `TABULAR` (default), `SUMMARY`, or `MATRIX`. |
+| `groupingsDown` | String | No | Comma-separated field API names for row groupings. Required for SUMMARY and MATRIX. Max 3 fields. |
+| `groupingsAcross` | String | No | Comma-separated field API names for column groupings. Only used for MATRIX. Max 3 fields. |
+| `filtersJson` | String | No | JSON array of filter objects: `[{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"}]`. Operators: `equals`, `notEqual`, `greaterThan`, `lessThan`, `contains`, `startsWith`. |
+| `dateFilter` | String | No | Date filter in `FIELD:RANGE` format (e.g., `CLOSE_DATE:THIS_FISCAL_YEAR`). Ranges: `THIS_FISCAL_QUARTER`, `LAST_FISCAL_QUARTER`, `THIS_FISCAL_YEAR`, `LAST_FISCAL_YEAR`, `THIS_MONTH`, `LAST_MONTH`, `LAST_30_DAYS`, `LAST_90_DAYS`. |
+| `folderName` | String | No | Name of an existing report folder. Defaults to the running user's "My Reports" folder. |
+
+**Outputs:** `reportId`, `reportUrl` (Lightning URL), `reportPath` (relative path), `success`, `errorMessage`
+
 ## Supported Report Formats
 
 | Format | Description | Requires |
