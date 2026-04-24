@@ -57,9 +57,7 @@ The agent user (or running user) needs:
 
 ## Agent Configuration
 
-Create a topic in Agent Builder with the following settings. You can use one combined topic or split into two (discovery + creation) depending on your agent's complexity.
-
-### Recommended: Single Topic
+Create a single topic in Agent Builder with the following settings.
 
 **Topic Label:** `Report Builder`
 
@@ -85,20 +83,6 @@ Create a topic in Agent Builder with the following settings. You can use one com
 - `Agent - ALF - List Report Types`
 - `Agent - ALF - Get Report Type Columns`
 - `Agent - ALF - Create Report`
-
-### Alternative: Two-Topic Split
-
-For agents with many topics, splitting reduces classification ambiguity:
-
-**Topic 1 — Report Type Discovery**
-- **Scope:** Assist users in identifying the most suitable Salesforce report type based on their data requirements. You cannot create reports under this topic.
-- **Actions:** `Agent - ALF - List Report Types`, `Agent - ALF - Get Report Type Columns`
-- **Instructions:** Instructions 1 and 2 from above.
-
-**Topic 2 — Report Creation**
-- **Scope:** Assist users in building reports by configuring columns, filters, groupings, date ranges, and format. Assume the report type and columns have already been identified.
-- **Actions:** `Agent - ALF - Create Report`
-- **Instructions:** Instructions 3 through 7 from above.
 
 ## Supported Report Formats
 
