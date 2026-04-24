@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <description>Calls the AgentGetReportTypeColumns Apex action to retrieve valid column API names and labels for a specific report type from the Analytics REST API.</description>
+        <name>Get_Report_Type_Columns</name>
+        <label>Get Report Type Columns</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>AgentGetReportTypeColumns</actionName>
+        <actionType>apex</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>reportType</name>
+            <value>
+                <elementReference>reportType</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>AgentGetReportTypeColumns</nameSegment>
+        <outputParameters>
+            <assignToReference>columnsJson</assignToReference>
+            <name>columnsJson</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>columnCount</assignToReference>
+            <name>columnCount</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>defaultColumnsJson</assignToReference>
+            <name>defaultColumnsJson</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>success</assignToReference>
+            <name>success</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>errorMessage</assignToReference>
+            <name>errorMessage</name>
+        </outputParameters>
+    </actionCalls>
+    <apiVersion>65.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <environments>Default</environments>
+    <interviewLabel>Agent - ALF - Get Report Type Columns {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Agent - ALF - Get Report Type Columns</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Report_Type_Columns</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <description>Number of columns returned. Use to confirm results were found before building the report.</description>
+        <name>columnCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <scale>0</scale>
+    </variables>
+    <variables>
+        <description>JSON array of available columns for the report type. Each element has &quot;apiName&quot; (use as column values in Create Report) and &quot;label&quot; (human-readable name). Example: [{&quot;apiName&quot;:&quot;CASE_NUMBER&quot;,&quot;label&quot;:&quot;Case Number&quot;},{&quot;apiName&quot;:&quot;STATUS&quot;,&quot;label&quot;:&quot;Status&quot;}]</description>
+        <name>columnsJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>JSON array of default column API names Salesforce uses for this report type. These are always valid and safe to use. Example: [&quot;CASE_NUMBER&quot;,&quot;SUBJECT&quot;,&quot;STATUS&quot;,&quot;PRIORITY&quot;]</description>
+        <name>defaultColumnsJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Error details when success is false. Common causes: invalid report type name, session timeout, or insufficient permissions.</description>
+        <name>errorMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>The report type API name to inspect. Example: CaseList, Opportunity, OrderList. Obtain this from List Report Types if you do not know the exact value.</description>
+        <name>reportType</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>True if columns were retrieved successfully, false if an error occurred. Check this before using columnsJson.</description>
+        <name>success</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+</Flow>

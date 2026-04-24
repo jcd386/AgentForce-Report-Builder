@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <description>Calls the AgentListReportTypes Apex action to query available report types from the Analytics REST API.</description>
+        <name>List_Report_Types</name>
+        <label>List Report Types</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>AgentListReportTypes</actionName>
+        <actionType>apex</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>filterKeyword</name>
+            <value>
+                <elementReference>filterKeyword</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>maxResults</name>
+            <value>
+                <elementReference>maxResults</elementReference>
+            </value>
+        </inputParameters>
+        <nameSegment>AgentListReportTypes</nameSegment>
+        <outputParameters>
+            <assignToReference>reportTypesJson</assignToReference>
+            <name>reportTypesJson</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>typeCount</assignToReference>
+            <name>typeCount</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>success</assignToReference>
+            <name>success</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>errorMessage</assignToReference>
+            <name>errorMessage</name>
+        </outputParameters>
+    </actionCalls>
+    <apiVersion>65.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <environments>Default</environments>
+    <interviewLabel>Agent - ALF - List Report Types {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Agent - ALF - List Report Types</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>List_Report_Types</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <description>Error details when success is false. Common causes: session timeout (try again), insufficient permissions (user needs access to Reports), or Analytics API unavailable.</description>
+        <name>errorMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Optional keyword to filter report types. Only types whose label or API name contain this text are returned. Case-insensitive. Example: &quot;Opportunity&quot; returns OpportunityList, OpportunityWithContact, etc. Leave blank to return all available report types.</description>
+        <name>filterKeyword</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Maximum number of report types to return. Defaults to 50 if not provided. Maximum allowed value is 200. Use lower values when you only need a few types to keep response concise.</description>
+        <name>maxResults</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
+    </variables>
+    <variables>
+        <description>JSON array of available report types. Each element has: &quot;apiName&quot; (the value to pass as reportType when creating a report), &quot;label&quot; (human-readable name), &quot;description&quot; (what data the type covers). Parse this to find the right report type for your needs.</description>
+        <name>reportTypesJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>True if report types were retrieved successfully, false if an error occurred. Always check this before using reportTypesJson.</description>
+        <name>success</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Number of report types returned. Use this to confirm results were found before parsing reportTypesJson.</description>
+        <name>typeCount</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+        <scale>0</scale>
+    </variables>
+</Flow>
