@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
     <actionCalls>
-        <description>Calls the AgentReportCreate Apex action to create a native Salesforce report via the Analytics REST API.</description>
         <name>Create_Report</name>
         <label>Create Report</label>
         <locationX>0</locationX>
         <locationY>0</locationY>
-        <actionName>AgentReportCreate</actionName>
+        <actionName>AgentCreateReport</actionName>
         <actionType>apex</actionType>
+        <connector>
+            <targetReference>Set_Output</targetReference>
+        </connector>
+        <faultConnector>
+            <targetReference>Set_Error</targetReference>
+        </faultConnector>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
             <name>reportName</name>
@@ -22,48 +27,40 @@
             </value>
         </inputParameters>
         <inputParameters>
-            <name>detailColumns</name>
+            <name>columns</name>
             <value>
-                <elementReference>detailColumns</elementReference>
+                <elementReference>columns</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
-            <name>reportFormat</name>
+            <name>filterColumn</name>
             <value>
-                <elementReference>reportFormat</elementReference>
+                <elementReference>filterColumn</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
-            <name>groupingsDown</name>
+            <name>filterOperator</name>
             <value>
-                <elementReference>groupingsDown</elementReference>
+                <elementReference>filterOperator</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
-            <name>groupingsAcross</name>
+            <name>filterValue</name>
             <value>
-                <elementReference>groupingsAcross</elementReference>
+                <elementReference>filterValue</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
-            <name>filtersJson</name>
+            <name>groupByColumn</name>
             <value>
-                <elementReference>filtersJson</elementReference>
+                <elementReference>groupByColumn</elementReference>
             </value>
         </inputParameters>
-        <inputParameters>
-            <name>dateFilter</name>
-            <value>
-                <elementReference>dateFilter</elementReference>
-            </value>
-        </inputParameters>
-        <inputParameters>
-            <name>folderName</name>
-            <value>
-                <elementReference>folderName</elementReference>
-            </value>
-        </inputParameters>
-        <nameSegment>AgentReportCreate</nameSegment>
+        <nameSegment>AgentCreateReport</nameSegment>
+        <outputParameters>
+            <assignToReference>success</assignToReference>
+            <name>success</name>
+        </outputParameters>
         <outputParameters>
             <assignToReference>reportId</assignToReference>
             <name>reportId</name>
@@ -73,12 +70,8 @@
             <name>reportUrl</name>
         </outputParameters>
         <outputParameters>
-            <assignToReference>reportPath</assignToReference>
-            <name>reportPath</name>
-        </outputParameters>
-        <outputParameters>
-            <assignToReference>success</assignToReference>
-            <name>success</name>
+            <assignToReference>createdReportName</assignToReference>
+            <name>reportName</name>
         </outputParameters>
         <outputParameters>
             <assignToReference>errorMessage</assignToReference>
@@ -87,6 +80,39 @@
     </actionCalls>
     <apiVersion>65.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Set_Error</name>
+        <label>Set Error</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>errorMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Flow.FaultMessage</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <name>Set_Output</name>
+        <label>Set Output</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>success</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>success</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
     <environments>Default</environments>
     <interviewLabel>Agent - ALF - Create Report {!$Flow.CurrentDateTime}</interviewLabel>
     <label>Agent - ALF - Create Report</label>
@@ -118,23 +144,23 @@
     </start>
     <status>Active</status>
     <variables>
-        <description>Standard date filter in FIELD:RANGE format. FIELD is the date column API name, RANGE is a preset: THIS_FISCAL_QUARTER, LAST_FISCAL_QUARTER, THIS_FISCAL_YEAR, LAST_FISCAL_YEAR, THIS_MONTH, LAST_MONTH, LAST_30_DAYS, LAST_90_DAYS. Example: &quot;CLOSE_DATE:THIS_FISCAL_YEAR&quot;. Leave blank for no date filter.</description>
-        <name>dateFilter</name>
+        <description>Comma-separated column API names. For CaseList: CASE_NUMBER,SUBJECT,STATUS,PRIORITY. For AccountList: ACCOUNT.NAME,ACCOUNT.INDUSTRY. For OpportunityList: OPPORTUNITY_NAME,AMOUNT,STAGE_NAME,CLOSE_DATE</description>
+        <name>columns</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Comma-separated list of field API names to display as columns. Use the report-type column format: OBJECT.FIELD_NAME (e.g., ACCOUNT.NAME, OPPORTUNITY.AMOUNT, CONTACT.EMAIL). Use &quot;Describe Object Schema&quot; to verify field API names exist.</description>
-        <name>detailColumns</name>
+        <description>Name of the created report as confirmed by the API</description>
+        <name>createdReportName</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
     </variables>
     <variables>
-        <description>Error details when success is false. Common errors: invalid report type (use List Report Types to find valid values), invalid field names (use Describe Object Schema to verify), permission errors (user needs Create and Customize Reports), or folder access denied.</description>
+        <description>Error details if success is false</description>
         <name>errorMessage</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -142,47 +168,39 @@
         <isOutput>true</isOutput>
     </variables>
     <variables>
-        <description>JSON array of filter objects to restrict which records appear. Each object needs: column (field API name), operator (equals, notEqual, greaterThan, lessThan, contains, startsWith), value. Example: [{&quot;column&quot;:&quot;OPPORTUNITY.STAGE_NAME&quot;,&quot;operator&quot;:&quot;equals&quot;,&quot;value&quot;:&quot;Closed Won&quot;}]. Leave blank for no filters.</description>
-        <name>filtersJson</name>
+        <description>Column API name to filter on (optional). Example: STATUS or CLOSED</description>
+        <name>filterColumn</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Name of an existing report folder to save the report in. The folder must exist and you must have write access. Leave blank to save to the current user&apos;s private &quot;My Reports&quot; folder.</description>
-        <name>folderName</name>
+        <description>Filter operator (optional). Values: equals, notEqual, lessThan, greaterThan, contains, notContain, startsWith</description>
+        <name>filterOperator</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Comma-separated field API names for column groupings. Only used when reportFormat is MATRIX. Maximum 3 fields. Example: &quot;OPPORTUNITY.CLOSE_DATE&quot;. Creates columns across the top of the matrix.</description>
-        <name>groupingsAcross</name>
+        <description>Value to filter by (optional). Example: Closed or 0</description>
+        <name>filterValue</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Comma-separated field API names for row groupings. Required when reportFormat is SUMMARY or MATRIX. Maximum 3 fields. Example: &quot;OPPORTUNITY.STAGE_NAME&quot; or &quot;ACCOUNT.INDUSTRY,ACCOUNT.TYPE&quot;. Each grouping creates a collapsible section with subtotals.</description>
-        <name>groupingsDown</name>
+        <description>Column API name to group rows by in a Summary report (optional). Supports comma-separated values for multi-level grouping. Example: Case.Case_Category__c or STAGE_NAME,FULL_NAME</description>
+        <name>groupByColumn</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Report layout format. TABULAR = flat list (default, simplest). SUMMARY = grouped rows with subtotals (requires groupingsDown). MATRIX = cross-tab with row and column groupings (requires both groupingsDown and groupingsAcross). Leave blank for TABULAR.</description>
-        <name>reportFormat</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <description>The Salesforce record ID of the newly created report. Use this to reference the report in subsequent actions or to build a URL.</description>
+        <description>Salesforce ID of the newly created report</description>
         <name>reportId</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -190,7 +208,7 @@
         <isOutput>true</isOutput>
     </variables>
     <variables>
-        <description>Human-readable name for the report. Example: &quot;Open Opportunities by Stage&quot;. Must be unique within the target folder. This becomes the report title visible in the Reports tab.</description>
+        <description>Display name for the new report</description>
         <name>reportName</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -198,15 +216,7 @@
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Relative path to the report, e.g. /lightning/r/Report/00O.../view. Use as a fallback if the full URL cannot be displayed — tell the user to paste this path into their org URL.</description>
-        <name>reportPath</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>false</isInput>
-        <isOutput>true</isOutput>
-    </variables>
-    <variables>
-        <description>The API name of the report type that determines which object and fields are available. Common values: AccountList, OpportunityList, ContactList, CaseList, LeadList. Use the &quot;List Report Types&quot; action first to discover valid values for this org.</description>
+        <description>Salesforce report type API name. Examples: CaseList, AccountList, Opportunity, ContactList, OrderList, LeadList</description>
         <name>reportType</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -214,7 +224,7 @@
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Direct Lightning URL to view the created report in Salesforce (uses lightning.force.com domain). Share this with the user so they can open the report immediately.</description>
+        <description>Direct URL to open the newly created report</description>
         <name>reportUrl</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -222,11 +232,14 @@
         <isOutput>true</isOutput>
     </variables>
     <variables>
-        <description>True if the report was created successfully, false if there was an error. Always check this before sharing the reportUrl. When false, read errorMessage for details about what went wrong.</description>
+        <description>True if the report was created successfully</description>
         <name>success</name>
         <dataType>Boolean</dataType>
         <isCollection>false</isCollection>
         <isInput>false</isInput>
         <isOutput>true</isOutput>
+        <value>
+            <booleanValue>false</booleanValue>
+        </value>
     </variables>
 </Flow>

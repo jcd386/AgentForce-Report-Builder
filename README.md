@@ -1,6 +1,6 @@
 # AgentForce Report Builder
 
-Reusable Agentforce invocable actions that let AI agents create native Salesforce reports via the Analytics REST API. Give your agent the ability to build tabular, summary, and matrix reports from natural language — no clicks required.
+Reusable Agentforce invocable actions that let AI agents create native Salesforce reports via the Analytics REST API. Give your agent the ability to build tabular and summary reports from natural language — no clicks required.
 
 <a href="https://githubsfdeploy.herokuapp.com/app/githubdeploy/jcd386/AgentForce-Report-Builder?ref=main">
   <img alt="Deploy to Salesforce" src="https://raw.githubusercontent.com/afawcett/githubsfdeploy/master/deploy.png">
@@ -12,7 +12,7 @@ Reusable Agentforce invocable actions that let AI agents create native Salesforc
 
 | Action | Description |
 |--------|-------------|
-| **AgentReportCreate** | Creates a native Salesforce report via the Analytics REST API. Supports TABULAR, SUMMARY, and MATRIX formats with column selection, row/column groupings, filters (JSON array), standard date filters, and folder targeting. |
+| **AgentCreateReport** | Creates a native Salesforce report via the Analytics REST API. Supports TABULAR and SUMMARY formats with column selection, a single filter, and group-by field. Automatically clears the default date filter and sets scope to organization. |
 | **AgentListReportTypes** | Queries the Analytics API for available report types. Returns a JSON array of `apiName`, `label`, and `description` for each type. Supports keyword filtering and result limits. |
 | **AgentGetReportTypeColumns** | Discovers valid column API names for any report type by creating a temporary probe report, reading back its default columns, then deleting it. Returns a JSON array of `apiName` and `label` per column. |
 
@@ -22,7 +22,7 @@ Flow wrappers for each Apex action — ready to add as Agentforce topic actions:
 
 | Flow | Wraps |
 |------|-------|
-| **Agent - ALF - Create Report** | `AgentReportCreate` |
+| **Agent - ALF - Create Report** | `AgentCreateReport` |
 | **Agent - ALF - List Report Types** | `AgentListReportTypes` |
 | **Agent - ALF - Get Report Type Columns** | `AgentGetReportTypeColumns` |
 
@@ -59,40 +59,50 @@ The agent user (or running user) needs:
 
 Create a single topic in Agent Builder with the following settings.
 
-**Topic Label:** `Report Builder`
+**Topic Label:** `Report Building`
 
 **Classification Description:**
-> This topic applies when users want to create, build, or generate Salesforce reports, or when they need help finding report types or available fields.
+> Create Salesforce reports on any object by calling the Create Report action directly. Handles report type selection, column discovery via Get Report Type Columns, filters, groupings, and all report configuration through the Analytics REST API.
 
 **Scope:**
-> Your job is to help users create native Salesforce reports. You do this by discovering the right report type, inspecting available columns, and then creating the report with the user's desired configuration. Always follow the discover → inspect → create workflow.
+> Create Salesforce reports and assist reps with reporting needs. Maps user requests to report types, columns, filters, and groupings, then creates reports directly via the Analytics REST API. Always follows the 4-step workflow: (1) identify report type, (2) discover columns via Get Report Type Columns for non-standard objects, (3) call Create Report, (4) return the report URL.
 
 **Instructions** (add each as a separate instruction in Agent Builder):
 
 | # | Instruction |
 |---|-------------|
-| 1 | When the user asks for a report, first determine what object or data they want to report on. Use the "List Report Types" action to search for matching report types. If the user says "opportunities", search for "opportunity". If they say "cases", search for "case". Present the matching report types and confirm which one to use. |
-| 2 | After confirming the report type, use the "Get Report Type Columns" action to discover all available fields for that report type. Use these results to select the most relevant columns for the user's request. Do not guess column API names — only use values returned by this action. |
-| 3 | When creating the report, choose the appropriate format: use TABULAR for simple lists with no grouping, SUMMARY when the user wants grouping or subtotals (requires groupingsDown), and MATRIX when the user wants both row and column groupings (requires groupingsDown and groupingsAcross). Default to TABULAR if the user doesn't specify. |
-| 4 | For filters, construct a JSON array of filter objects. Each object needs: column (the field API name from the column discovery step), operator (equals, notEqual, greaterThan, lessThan, contains, startsWith), and value. Example: [{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"}]. Only apply filters the user explicitly requests. |
-| 5 | For date filters, use the FIELD:RANGE format. Common ranges: THIS_FISCAL_QUARTER, LAST_FISCAL_QUARTER, THIS_FISCAL_YEAR, LAST_FISCAL_YEAR, THIS_MONTH, LAST_MONTH, LAST_30_DAYS, LAST_90_DAYS. Example: "CLOSE_DATE:THIS_FISCAL_YEAR". Only apply a date filter if the user mentions a time period. |
-| 6 | After the report is created successfully, share the report URL with the user so they can view it immediately. If the creation fails, read the error message and explain what went wrong in plain language. Common issues: invalid field names (re-run column discovery), invalid report type (re-run type listing), or missing permissions. |
-| 7 | If the user asks you to group the report by a field, switch the format to SUMMARY and add that field to groupingsDown. If they want a cross-tab or pivot-style layout, use MATRIX and put row groupings in groupingsDown and column groupings in groupingsAcross. Maximum 3 grouping fields in each direction. |
+| 1 | You help users create Salesforce reports on any object they ask about — cases, accounts, opportunities, contacts, orders, leads, products, assets, campaigns, contracts, activities, custom objects. Always call "Create Report" directly. If the user's request is ambiguous (e.g., "customers" could mean accounts or contacts), state your interpretation before proceeding — e.g., "I'll create this as an Accounts report — let me know if you meant something else." |
+| 2 | **How to Build Any Report (4-step workflow):** Step 1 — Determine the report type: If the object is one of the known types listed in instruction 3, use it directly (no lookup needed). Otherwise, call "List Report Types" with filterKeyword = the object name and pick the best-matching apiName. Step 2 — Determine the columns: If the type is one of the 6 core types (CaseList/AccountList/Opportunity/ContactList/LeadList/OrderList), use the hardcoded column list in instruction 4 (no lookup needed). For ANY other type, you MUST call "Get Report Type Columns" first and use ONLY apiName values from the response. Step 3 — Call "Create Report" with: reportName, reportType, columns (comma-separated, NOT including groupByColumn), optional filterColumn + filterOperator + filterValue, optional groupByColumn. Step 4 — Respond with the report name and a clickable link using reportUrl. Say: "Your report '{reportName}' is ready! [Open Report]({reportUrl})". If success=false, share the errorMessage and tell the user to create it manually. |
+| 3 | **Report Type Selection — Known types (use directly, no lookup needed):** Cases → `CaseList`, Accounts → `AccountList`, Opportunities → `Opportunity`, Contacts → `ContactList`, Leads → `LeadList`, Orders → `OrderList`, Campaigns → `CampaignList`, Contracts → `ContractList`, Assets → `AssetWithProduct`, Products → `ProductList`, Price Books → `PricebookProduct`. For anything NOT in this list (Activities, custom objects like Invoice\_\_c, etc.), call "List Report Types" with filterKeyword = the object name the user mentioned. Use the apiName field from the results, NOT the label. CRITICAL: Report type API names are NOT the same as Salesforce object names. Never guess them. |
+| 4 | **Column API Names — Known types (use directly, no lookup needed):** `CaseList`: CASE_NUMBER, SUBJECT, STATUS, PRIORITY, ORIGIN, ACCOUNT.NAME, AGE. `AccountList`: ACCOUNT.NAME, TYPE, RATING, USERS.NAME (note: very few columns available). `Opportunity`: OPPORTUNITY_NAME, AMOUNT, STAGE_NAME, CLOSE_DATE, ACCOUNT_NAME, FULL_NAME, TYPE, PROBABILITY, LEAD_SOURCE. `ContactList`: FIRST_NAME, LAST_NAME, ACCOUNT.NAME, TITLE, EMAIL, OWNER_FULL_NAME (use FIRST_NAME + LAST_NAME separately, NOT FULL_NAME). `LeadList`: FIRST_NAME, LAST_NAME, COMPANY, EMAIL, LEAD_SOURCE, RATING. `OrderList`: ORDER_NUMBER, ORDER_STATUS, ORDER_TOTAL_AMOUNT, ACCOUNT_NAME, ORDER_EFFECTIVE_DATE (NOT STATUS, TOTAL_AMOUNT, or EFFECTIVE_DATE). For CampaignList, ContractList, AssetWithProduct, ProductList, PricebookProduct, and all other types — you MUST call "Get Report Type Columns" to discover column names. Do NOT guess. |
+| 5 | **Grouping and Filter Reference.** Grouping examples (groupByColumn accepts comma-separated values): CaseList by status → STATUS; by origin → ORIGIN. AccountList by type → TYPE; by rating → RATING. Opportunity by stage → STAGE_NAME; by stage and owner → STAGE_NAME,FULL_NAME. ContactList by account → ACCOUNT.NAME. LeadList by source → LEAD_SOURCE. Filter shorthand: "open cases" → filterColumn=CLOSED, filterOperator=equals, filterValue=0. "open opportunities" → filterColumn=STAGE_NAME, filterOperator=notEqual, filterValue=Closed Won. "closed won" → filterColumn=STAGE_NAME, filterOperator=equals, filterValue=Closed Won. Date ranges use filterOperator=equals with: THIS_MONTH, THIS_YEAR, LAST_MONTH, LAST_N_DAYS:90, TODAY, LAST_YEAR. IMPORTANT: Never put the groupByColumn value in the columns list — it causes an API error. For Opportunity reports, filter on STAGE_NAME, not IsClosed. |
 
 **Actions** (add all three):
+- `Agent - ALF - Create Report`
 - `Agent - ALF - List Report Types`
 - `Agent - ALF - Get Report Type Columns`
-- `Agent - ALF - Create Report`
 
 ### Action Field Reference
 
-When adding each action to the topic, mark the required fields and configure descriptions so the agent knows how to use them.
+#### Agent - ALF - Create Report
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `reportName` | String | **Yes** | Display name for the new report |
+| `reportType` | String | **Yes** | Salesforce report type API name (e.g., `CaseList`, `AccountList`, `Opportunity`) |
+| `columns` | String | No | Comma-separated column API names (e.g., `CASE_NUMBER,SUBJECT,STATUS,PRIORITY`). Do NOT include the groupByColumn here. |
+| `filterColumn` | String | No | Column API name to filter on (e.g., `STATUS`, `CLOSED`) |
+| `filterOperator` | String | No | Filter operator: `equals`, `notEqual`, `lessThan`, `greaterThan`, `contains`, `notContain`, `startsWith` |
+| `filterValue` | String | No | Value to filter by (e.g., `Closed`, `0`) |
+| `groupByColumn` | String | No | Column API name to group rows by. Supports comma-separated values for multi-level grouping (e.g., `STAGE_NAME,FULL_NAME`). Automatically switches format to SUMMARY. |
+
+**Outputs:** `reportId`, `reportUrl` (Lightning URL), `createdReportName`, `success`, `errorMessage`
 
 #### Agent - ALF - List Report Types
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `filterKeyword` | String | **Yes** | Keyword to filter report types. Only types whose label or API name contain this text are returned. Case-insensitive. Example: "Opportunity" returns OpportunityList, OpportunityWithContact, etc. |
+| `filterKeyword` | String | **Yes** | Keyword to filter report types. Case-insensitive. Example: "Opportunity" returns OpportunityList, OpportunityWithContact, etc. |
 | `maxResults` | Number | No | Maximum number of report types to return. Defaults to 50. Max 200. |
 
 **Outputs:** `reportTypesJson` (JSON array of `apiName`, `label`, `description`), `typeCount`, `success`, `errorMessage`
@@ -105,48 +115,24 @@ When adding each action to the topic, mark the required fields and configure des
 
 **Outputs:** `columnsJson` (JSON array of `apiName`, `label`), `defaultColumnsJson` (JSON array of default column API names), `columnCount`, `success`, `errorMessage`
 
-#### Agent - ALF - Create Report
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `reportName` | String | **Yes** | Human-readable name for the report (e.g., "Open Opportunities by Stage"). Must be unique within the target folder. |
-| `reportType` | String | **Yes** | Report type API name from the List Report Types action (e.g., `OpportunityList`). |
-| `detailColumns` | String | **Yes** | Comma-separated field API names for columns. Use values from Get Report Type Columns (e.g., `ACCOUNT.NAME,OPPORTUNITY.AMOUNT,OPPORTUNITY.CLOSE_DATE`). |
-| `reportFormat` | String | No | `TABULAR` (default), `SUMMARY`, or `MATRIX`. |
-| `groupingsDown` | String | No | Comma-separated field API names for row groupings. Required for SUMMARY and MATRIX. Max 3 fields. |
-| `groupingsAcross` | String | No | Comma-separated field API names for column groupings. Only used for MATRIX. Max 3 fields. |
-| `filtersJson` | String | No | JSON array of filter objects: `[{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"}]`. Operators: `equals`, `notEqual`, `greaterThan`, `lessThan`, `contains`, `startsWith`. |
-| `dateFilter` | String | No | Date filter in `FIELD:RANGE` format (e.g., `CLOSE_DATE:THIS_FISCAL_YEAR`). Ranges: `THIS_FISCAL_QUARTER`, `LAST_FISCAL_QUARTER`, `THIS_FISCAL_YEAR`, `LAST_FISCAL_YEAR`, `THIS_MONTH`, `LAST_MONTH`, `LAST_30_DAYS`, `LAST_90_DAYS`. |
-| `folderName` | String | No | Name of an existing report folder. Defaults to the running user's "My Reports" folder. |
-
-**Outputs:** `reportId`, `reportUrl` (Lightning URL), `reportPath` (relative path), `success`, `errorMessage`
-
-## Supported Report Formats
-
-| Format | Description | Requires |
-|--------|-------------|----------|
-| TABULAR | Flat list of records | Nothing extra |
-| SUMMARY | Grouped rows with subtotals | `groupingsDown` (1-3 fields) |
-| MATRIX | Cross-tab with row and column groupings | `groupingsDown` + `groupingsAcross` |
-
 ## Example Prompts
 
 Once wired to an Agentforce topic, users can say things like:
 
 - *"Create a report showing open opportunities grouped by stage"*
 - *"Build a cases report grouped by category"*
-- *"Create an activities report showing tasks for this month"*
-- *"Show me contacts at accounts in the technology industry"*
+- *"Show me all accounts grouped by type"*
+- *"Create a contacts report for accounts in the technology industry"*
 
 ## File Inventory
 
 ```
 force-app/main/default/
 ├── classes/
-│   ├── AgentReportCreate.cls              # Core report creation action
-│   ├── AgentReportCreate.cls-meta.xml
-│   ├── AgentReportCreateTest.cls          # Test class (100% coverage)
-│   ├── AgentReportCreateTest.cls-meta.xml
+│   ├── AgentCreateReport.cls              # Core report creation action
+│   ├── AgentCreateReport.cls-meta.xml
+│   ├── AgentCreateReportTest.cls          # Test class
+│   ├── AgentCreateReportTest.cls-meta.xml
 │   ├── AgentListReportTypes.cls           # Report type discovery action
 │   ├── AgentListReportTypes.cls-meta.xml
 │   ├── AgentListReportTypesTest.cls
