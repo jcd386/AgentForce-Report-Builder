@@ -28,6 +28,12 @@ public with sharing class AgentGetReportTypeColumns {
         public String columnsJson;
 
         @InvocableVariable(
+            label='Default Columns JSON'
+            description='JSON array of column API names that are in the default column set for this report type. These are the columns Salesforce uses by default when creating a report of this type.'
+        )
+        public String defaultColumnsJson;
+
+        @InvocableVariable(
             label='Column Count'
             description='Number of columns returned. Use to confirm results before building the report.'
         )
@@ -76,69 +82,87 @@ public with sharing class AgentGetReportTypeColumns {
             String sessionId = getSessionId();
             String baseUrl = URL.getOrgDomainUrl().toExternalForm();
 
-            // Step 1: Create a temporary report with empty detailColumns.
-            // Salesforce auto-populates detailColumns with all valid defaults for the type.
-            Map<String, Object> requestBody = new Map<String, Object>{
-                'reportMetadata' => new Map<String, Object>{
-                    'name'          => 'TEMP_PROBE_' + reportType + '_' + System.now().getTime(),
-                    'reportType'    => new Map<String, Object>{ 'type' => reportType },
-                    'reportFormat'  => 'TABULAR',
-                    'detailColumns' => new List<String>()
-                }
-            };
+            // Use the GET /analytics/reportTypes/{type} endpoint to discover columns.
+            // This avoids the probe-create-read-delete approach which fails on:
+            //   - Heavily customized report types (>100 default columns exceeds the report column limit)
+            //   - Long report type API names (probe report name exceeds 40 char limit)
+            //   - Report types that require folder permissions to probe
+            HttpRequest describeReq = new HttpRequest();
+            describeReq.setEndpoint(baseUrl + '/services/data/' + API_VERSION + '/analytics/reportTypes/' + reportType);
+            describeReq.setMethod('GET');
+            describeReq.setHeader('Authorization', 'Bearer ' + sessionId);
+            describeReq.setTimeout(30000);
 
-            HttpRequest createReq = new HttpRequest();
-            createReq.setEndpoint(baseUrl + '/services/data/' + API_VERSION + '/analytics/reports');
-            createReq.setMethod('POST');
-            createReq.setHeader('Authorization', 'Bearer ' + sessionId);
-            createReq.setHeader('Content-Type', 'application/json');
-            createReq.setBody(JSON.serialize(requestBody));
+            HttpResponse describeRes = new Http().send(describeReq);
 
-            HttpResponse createRes = new Http().send(createReq);
-
-            if (createRes.getStatusCode() != 200 && createRes.getStatusCode() != 201) {
+            if (describeRes.getStatusCode() != 200) {
                 output.success = false;
-                output.errorMessage = 'Could not probe report type ' + reportType
-                    + ' (HTTP ' + createRes.getStatusCode() + '): '
-                    + createRes.getBody().abbreviate(200);
+                output.errorMessage = 'Could not describe report type ' + reportType
+                    + ' (HTTP ' + describeRes.getStatusCode() + '): '
+                    + describeRes.getBody().abbreviate(200);
                 output.columnCount = 0;
                 output.columnsJson = '[]';
                 return output;
             }
 
-            Map<String, Object> createBody = (Map<String, Object>) JSON.deserializeUntyped(createRes.getBody());
-            Map<String, Object> attrs = (Map<String, Object>) createBody.get('attributes');
-            String reportId = attrs != null ? String.valueOf(attrs.get('reportId')) : null;
+            Map<String, Object> describeBody = (Map<String, Object>) JSON.deserializeUntyped(describeRes.getBody());
 
-            // Step 2: Read back the detailColumns Salesforce assigned.
-            Map<String, Object> meta = (Map<String, Object>) createBody.get('reportMetadata');
-            List<String> detailCols = new List<String>();
-            if (meta != null && meta.containsKey('detailColumns')) {
-                for (Object col : (List<Object>) meta.get('detailColumns')) {
-                    detailCols.add(String.valueOf(col));
+            // Extract available columns. Standard report types put them in reportExtendedMetadata.detailColumnInfo;
+            // custom report types only put DEFAULT columns there (often just 1) and put the FULL available set in
+            // reportTypeMetadata.categories[*].columns. We read both and merge so the agent sees every valid column.
+            List<Map<String, String>> columns = new List<Map<String, String>>();
+            Set<String> seen = new Set<String>();
+            if (describeBody.containsKey('reportExtendedMetadata')) {
+                Map<String, Object> extMeta = (Map<String, Object>) describeBody.get('reportExtendedMetadata');
+                Map<String, Object> detailColInfo = (Map<String, Object>) extMeta.get('detailColumnInfo');
+                if (detailColInfo != null) {
+                    for (String apiName : detailColInfo.keySet()) {
+                        Map<String, Object> colMeta = (Map<String, Object>) detailColInfo.get(apiName);
+                        String label = colMeta != null && colMeta.get('label') != null
+                            ? String.valueOf(colMeta.get('label'))
+                            : apiName;
+                        columns.add(new Map<String, String>{ 'apiName' => apiName, 'label' => label });
+                        seen.add(apiName);
+                    }
+                }
+            }
+            if (describeBody.containsKey('reportTypeMetadata')) {
+                Map<String, Object> rtMeta = (Map<String, Object>) describeBody.get('reportTypeMetadata');
+                Object catsRaw = rtMeta.get('categories');
+                if (catsRaw instanceof List<Object>) {
+                    for (Object catObj : (List<Object>) catsRaw) {
+                        Map<String, Object> cat = (Map<String, Object>) catObj;
+                        Map<String, Object> catCols = (Map<String, Object>) cat.get('columns');
+                        if (catCols == null) continue;
+                        for (String apiName : catCols.keySet()) {
+                            if (seen.contains(apiName)) continue;
+                            Map<String, Object> colMeta = (Map<String, Object>) catCols.get(apiName);
+                            String label = colMeta != null && colMeta.get('label') != null
+                                ? String.valueOf(colMeta.get('label'))
+                                : apiName;
+                            columns.add(new Map<String, String>{ 'apiName' => apiName, 'label' => label });
+                            seen.add(apiName);
+                        }
+                    }
                 }
             }
 
-            // Step 3: Delete the temp report (best-effort, don't fail if delete fails).
-            if (String.isNotBlank(reportId)) {
-                HttpRequest delReq = new HttpRequest();
-                delReq.setEndpoint(baseUrl + '/services/data/' + API_VERSION + '/analytics/reports/' + reportId);
-                delReq.setMethod('DELETE');
-                delReq.setHeader('Authorization', 'Bearer ' + sessionId);
-                new Http().send(delReq);
-            }
-
-            // Step 4: Build output — each column gets an apiName entry.
-            // Labels are the same as apiName since the describe endpoint doesn't return labels
-            // for standard types; the LLM can match apiName to user intent directly.
-            List<Map<String, String>> columns = new List<Map<String, String>>();
-            for (String col : detailCols) {
-                columns.add(new Map<String, String>{ 'apiName' => col, 'label' => col });
+            // Extract the default column set from reportMetadata.detailColumns
+            List<String> defaultCols = new List<String>();
+            if (describeBody.containsKey('reportMetadata')) {
+                Map<String, Object> reportMeta = (Map<String, Object>) describeBody.get('reportMetadata');
+                if (reportMeta.containsKey('detailColumns') && reportMeta.get('detailColumns') != null) {
+                    for (Object col : (List<Object>) reportMeta.get('detailColumns')) {
+                        defaultCols.add(String.valueOf(col));
+                    }
+                }
             }
 
             output.columnsJson = JSON.serialize(columns);
+            output.defaultColumnsJson = JSON.serialize(defaultCols);
             output.columnCount = columns.size();
             output.success = true;
+
 
         } catch (Exception e) {
             output.success = false;

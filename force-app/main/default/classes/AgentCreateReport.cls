@@ -42,22 +42,43 @@ public with sharing class AgentCreateReport {
             }
 
             // Build report metadata map
+            // Salesforce report names have a 40-char limit; truncate if necessary so the agent can generate longer descriptive names without failing.
+            String reportName = String.isBlank(inp.reportName) ? '' : inp.reportName.left(40);
             Map<String, Object> reportType = new Map<String, Object>{ 'type' => inp.reportType };
             Map<String, Object> metadata = new Map<String, Object>{
-                'name'          => inp.reportName,
+                'name'          => reportName,
                 'reportType'    => reportType,
                 'reportFormat'  => String.isNotBlank(inp.groupByColumn) ? 'SUMMARY' : 'TABULAR',
                 'detailColumns' => detailCols
             };
 
-            // Add filter if provided
-            if (String.isNotBlank(inp.filterColumn) && String.isNotBlank(inp.filterOperator)) {
-                Map<String, Object> filter = new Map<String, Object>{
+            // Build report filters — supports single (filterColumn/Operator/Value) and multi (filtersJson)
+            List<Object> reportFilters = new List<Object>();
+            if (String.isNotBlank(inp.filtersJson)) {
+                try {
+                    List<Object> rawFilters = (List<Object>) JSON.deserializeUntyped(inp.filtersJson);
+                    for (Object rawFilter : rawFilters) {
+                        Map<String, Object> f = (Map<String, Object>) rawFilter;
+                        reportFilters.add(new Map<String, Object>{
+                            'column'   => String.valueOf(f.get('column')),
+                            'operator' => String.valueOf(f.get('operator')),
+                            'value'    => f.get('value') != null ? String.valueOf(f.get('value')) : ''
+                        });
+                    }
+                } catch (Exception e) {
+                    out.success = false;
+                    out.errorMessage = 'Invalid filtersJson format: ' + e.getMessage();
+                    return out;
+                }
+            } else if (String.isNotBlank(inp.filterColumn) && String.isNotBlank(inp.filterOperator)) {
+                reportFilters.add(new Map<String, Object>{
                     'column'   => inp.filterColumn,
                     'operator' => inp.filterOperator,
                     'value'    => inp.filterValue != null ? inp.filterValue : ''
-                };
-                metadata.put('reportFilters', new List<Object>{ filter });
+                });
+            }
+            if (!reportFilters.isEmpty()) {
+                metadata.put('reportFilters', reportFilters);
             }
 
             // Add groupings if provided (supports comma-separated multi-grouping)
@@ -117,8 +138,18 @@ public with sharing class AgentCreateReport {
                         }));
                         new Http().send(dateReq); // best-effort
                     }
-                    // PATCH 2: scope — try 'organization' first (most types), fall back to 'org' (LeadList)
-                    for (String scopeVal : new List<String>{'organization', 'org'}) {
+                    // PATCH 2: scope — use input scope if provided, default to organization
+                    String requestedScope = String.isBlank(inp.scope) ? 'organization' : inp.scope.toLowerCase().trim();
+                    // Map common synonyms
+                    if (requestedScope == 'mine' || requestedScope == 'me' || requestedScope == 'my') {
+                        requestedScope = 'user';
+                    } else if (requestedScope == 'all' || requestedScope == 'org') {
+                        requestedScope = 'organization';
+                    }
+                    // Some report types use 'org' instead of 'organization' (e.g., LeadList) — try fallback
+                    List<String> scopesToTry = new List<String>{ requestedScope };
+                    if (requestedScope == 'organization') scopesToTry.add('org');
+                    for (String scopeVal : scopesToTry) {
                         HttpRequest scopeReq = new HttpRequest();
                         scopeReq.setEndpoint(reportEndpoint);
                         scopeReq.setMethod('PATCH');
@@ -172,6 +203,12 @@ public with sharing class AgentCreateReport {
 
         @InvocableVariable(required=false label='Group By Column' description='Column API name to group rows by in a Summary report. Example: Case.Case_Category__c or STAGE_NAME')
         public String groupByColumn;
+
+        @InvocableVariable(required=false label='Scope' description='Whose records to include. Use "user" for "my X" prompts (records owned by the running user), "team" for "my team\'s X", or "organization" for "all X" across the whole org. Defaults to "organization".')
+        public String scope;
+
+        @InvocableVariable(required=false label='Filters JSON' description='JSON array of filter objects for multi-filter reports. Use this when more than one filter is needed. Each object: {"column":"FIELD","operator":"equals","value":"X"}. Example: [{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"},{"column":"CLOSE_DATE","operator":"greaterThan","value":"2026-01-01"}]. Operators: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith. If both filtersJson and filterColumn are provided, filtersJson wins.')
+        public String filtersJson;
     }
 
     public class Output {

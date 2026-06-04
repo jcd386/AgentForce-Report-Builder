@@ -57,6 +57,35 @@ private class AgentGetReportTypeColumnsTest {
         }
     }
 
+    // Custom report type response: only 1 column in detailColumnInfo (default), but full set in reportTypeMetadata.categories
+    private class MockCustomReportType implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/json');
+            res.setStatusCode(200);
+            res.setBody('{'
+                + '"attributes":{"reportId":"00O000000002CCCCC","reportName":"CustomTest"},'
+                + '"reportMetadata":{"name":"CustomTest","detailColumns":["Opportunity.Name"]},'
+                + '"reportExtendedMetadata":{'
+                +   '"detailColumnInfo":{"Opportunity.Name":{"label":"Opportunity Name","dataType":"string"}}'
+                + '},'
+                + '"reportTypeMetadata":{'
+                +   '"categories":[{'
+                +     '"label":"Opportunities",'
+                +     '"columns":{'
+                +       '"Opportunity.StageName":{"label":"Stage","dataType":"picklist"},'
+                +       '"Opportunity.Amount":{"label":"Amount","dataType":"currency"},'
+                +       '"Opportunity.Binder_Sent_Date__c":{"label":"Binder Sent Date","dataType":"date"},'
+                +       '"Opportunity.Case_Designer__c.Name":{"label":"Case Designer: Full Name","dataType":"string"},'
+                +       '"Opportunity.Name":{"label":"Opportunity Name","dataType":"string"}'
+                +     '}'
+                +   '}]'
+                + '}'
+                + '}');
+            return res;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // TESTS
     // ─────────────────────────────────────────────────────────────────────────
@@ -179,5 +208,21 @@ private class AgentGetReportTypeColumnsTest {
         output.columnCount = 0;
         output.success = false;
         output.errorMessage = 'Invalid report type';
+    }
+
+    @IsTest
+    static void testCustomReportTypeMergesCategoriesColumns() {
+        Test.setMock(HttpCalloutMock.class, new MockCustomReportType());
+        AgentGetReportTypeColumns.Input input = new AgentGetReportTypeColumns.Input();
+        input.reportType = 'Opportunities_POZ_Full__c';
+
+        Test.startTest();
+        AgentGetReportTypeColumns.Output output = AgentGetReportTypeColumns.processInput(input);
+        Test.stopTest();
+
+        System.assertEquals(true, output.success, 'Should succeed');
+        System.assert(output.columnCount >= 5, 'Should merge detailColumnInfo + categories columns; got ' + output.columnCount);
+        System.assert(output.columnsJson.contains('Opportunity.Binder_Sent_Date__c'), 'Should include category columns');
+        System.assert(output.columnsJson.contains('Opportunity.Case_Designer__c.Name'), 'Should include lookup name columns');
     }
 }
