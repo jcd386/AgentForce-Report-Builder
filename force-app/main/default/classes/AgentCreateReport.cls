@@ -1,13 +1,125 @@
-/**
- * AgentCreateReport
- * Invocable action that creates a Salesforce report via the Analytics REST API.
- * Used by the Report Builder Agentforce agent.
- */
 public with sharing class AgentCreateReport {
+
+    private static final String API_VERSION = 'v65.0';
+
+    public class Input {
+        @InvocableVariable(
+            required=true
+            label='Report Name'
+            description='Display name for the new report. Truncated to 40 characters if longer.'
+        )
+        public String reportName;
+
+        @InvocableVariable(
+            required=true
+            label='Report Type'
+            description='Report type API name from "List Report Types". Examples: CaseList, AccountList, Opportunity, ContactList, LeadList, OpportunityProduct.'
+        )
+        public String reportType;
+
+        @InvocableVariable(
+            required=true
+            label='Columns'
+            description='Comma-separated column API names from "Get Report Type Columns". Examples: CASE_NUMBER,SUBJECT,STATUS or ACCOUNT.NAME,AMOUNT,STAGE_NAME. Do not include group-by columns here — they are added automatically.'
+        )
+        public String columns;
+
+        @InvocableVariable(
+            required=false
+            label='Report Format'
+            description='TABULAR (flat list, default), SUMMARY (grouped with subtotals), or MATRIX (row and column groupings). Defaults to TABULAR if omitted.'
+        )
+        public String reportFormat;
+
+        @InvocableVariable(
+            required=false
+            label='Groupings Down'
+            description='Comma-separated column API names for row groupings. Required when format is SUMMARY or MATRIX. Maximum 3. Example: STAGE_NAME,OWNER_NAME'
+        )
+        public String groupingsDown;
+
+        @InvocableVariable(
+            required=false
+            label='Groupings Across'
+            description='Comma-separated column API names for column groupings. Only used when format is MATRIX. Maximum 3.'
+        )
+        public String groupingsAcross;
+
+        @InvocableVariable(
+            required=false
+            label='Filter Column'
+            description='Column API name to filter on for a single filter. Example: STATUS or CLOSED. Use Filters JSON instead when multiple filters are needed.'
+        )
+        public String filterColumn;
+
+        @InvocableVariable(
+            required=false
+            label='Filter Operator'
+            description='Filter operator. Values: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith, includes, excludes.'
+        )
+        public String filterOperator;
+
+        @InvocableVariable(
+            required=false
+            label='Filter Value'
+            description='Value to filter by. Use YYYY-MM-DD for dates, true/false for booleans, numbers without currency symbols.'
+        )
+        public String filterValue;
+
+        @InvocableVariable(
+            required=false
+            label='Filters JSON'
+            description='JSON array of filter objects for multi-filter reports. Each object: {"column":"FIELD","operator":"equals","value":"X"}. Example: [{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"},{"column":"CLOSE_DATE","operator":"greaterThan","value":"2026-01-01"}]. Takes precedence over the single filter fields if both are provided.'
+        )
+        public String filtersJson;
+
+        @InvocableVariable(
+            required=false
+            label='Date Filter'
+            description='Standard date filter. Format: "FIELD:RANGE" where RANGE is THIS_FISCAL_QUARTER, LAST_FISCAL_QUARTER, THIS_FISCAL_YEAR, LAST_FISCAL_YEAR, THIS_MONTH, LAST_MONTH, LAST_30_DAYS, LAST_90_DAYS, or CUSTOM. Example: "CLOSE_DATE:THIS_FISCAL_YEAR"'
+        )
+        public String dateFilter;
+
+        @InvocableVariable(
+            required=false
+            label='Scope'
+            description='Whose records to include. Use "user" for "my" records, "team" for "my team", or "organization" for all records org-wide. Defaults to "organization".'
+        )
+        public String scope;
+
+        @InvocableVariable(
+            required=false
+            label='Folder Name'
+            description='Name of the report folder to save the report in. Leave blank for the user\'s private reports folder.'
+        )
+        public String folderName;
+    }
+
+    public class Output {
+        @InvocableVariable(label='Success' description='True if the report was created successfully.')
+        public Boolean success;
+
+        @InvocableVariable(label='Report ID' description='Salesforce ID of the created report. Only populated on success.')
+        public String reportId;
+
+        @InvocableVariable(label='Report URL' description='Full Lightning URL to view the report in a browser.')
+        public String reportUrl;
+
+        @InvocableVariable(label='Report Path' description='Relative path to the report. Fallback when the full URL is unavailable.')
+        public String reportPath;
+
+        @InvocableVariable(label='Report Name' description='Display name of the created report.')
+        public String reportName;
+
+        @InvocableVariable(label='Error Message' description='Error details when success is false. Empty on success.')
+        public String errorMessage;
+    }
 
     @InvocableMethod(
         label='Create Salesforce Report'
-        description='Creates a new Salesforce report using the Analytics REST API. Pass the report name, type, columns, optional filter, and optional group-by field.'
+        description='Creates a native Salesforce report using the Analytics REST API. Supports tabular, summary, and matrix formats with filters, groupings, date filters, scope control, and folder placement. Use "List Report Types" and "Get Report Type Columns" first to discover valid inputs.'
+        category='Agent Reporting'
+        callout=true
     )
     public static List<Output> createReport(List<Input> inputs) {
         List<Output> results = new List<Output>();
@@ -17,100 +129,57 @@ public with sharing class AgentCreateReport {
         return results;
     }
 
+    @TestVisible
     private static Output execute(Input inp) {
         Output out = new Output();
         try {
-            // Parse group-by columns (comma-separated, e.g. "STAGE_NAME,OWNER_NAME")
-            List<String> groupByCols = new List<String>();
-            if (String.isNotBlank(inp.groupByColumn)) {
-                for (String g : inp.groupByColumn.split(',')) {
-                    String gt = g.trim();
-                    if (String.isNotBlank(gt)) groupByCols.add(gt);
-                }
+            if (String.isBlank(inp.reportName)) {
+                out.success = false;
+                out.errorMessage = 'reportName is required';
+                return out;
             }
-            Set<String> groupBySet = new Set<String>(groupByCols);
-
-            // Build detail columns list (exclude all group-by columns to avoid API error)
-            List<String> detailCols = new List<String>();
-            if (String.isNotBlank(inp.columns)) {
-                for (String col : inp.columns.split(',')) {
-                    String trimmed = col.trim();
-                    if (String.isNotBlank(trimmed) && !groupBySet.contains(trimmed)) {
-                        detailCols.add(trimmed);
-                    }
-                }
+            if (String.isBlank(inp.reportType)) {
+                out.success = false;
+                out.errorMessage = 'reportType is required';
+                return out;
+            }
+            if (String.isBlank(inp.columns)) {
+                out.success = false;
+                out.errorMessage = 'columns is required';
+                return out;
             }
 
-            // Build report metadata map
-            // Salesforce report names have a 40-char limit; truncate if necessary so the agent can generate longer descriptive names without failing.
-            String reportName = String.isBlank(inp.reportName) ? '' : inp.reportName.left(40);
-            Map<String, Object> reportType = new Map<String, Object>{ 'type' => inp.reportType };
-            Map<String, Object> metadata = new Map<String, Object>{
-                'name'          => reportName,
-                'reportType'    => reportType,
-                'reportFormat'  => String.isNotBlank(inp.groupByColumn) ? 'SUMMARY' : 'TABULAR',
-                'detailColumns' => detailCols
-            };
-
-            // Build report filters — supports single (filterColumn/Operator/Value) and multi (filtersJson)
-            List<Object> reportFilters = new List<Object>();
-            if (String.isNotBlank(inp.filtersJson)) {
-                try {
-                    List<Object> rawFilters = (List<Object>) JSON.deserializeUntyped(inp.filtersJson);
-                    for (Object rawFilter : rawFilters) {
-                        Map<String, Object> f = (Map<String, Object>) rawFilter;
-                        reportFilters.add(new Map<String, Object>{
-                            'column'   => String.valueOf(f.get('column')),
-                            'operator' => String.valueOf(f.get('operator')),
-                            'value'    => f.get('value') != null ? String.valueOf(f.get('value')) : ''
-                        });
-                    }
-                } catch (Exception e) {
-                    out.success = false;
-                    out.errorMessage = 'Invalid filtersJson format: ' + e.getMessage();
-                    return out;
-                }
-            } else if (String.isNotBlank(inp.filterColumn) && String.isNotBlank(inp.filterOperator)) {
-                reportFilters.add(new Map<String, Object>{
-                    'column'   => inp.filterColumn,
-                    'operator' => inp.filterOperator,
-                    'value'    => inp.filterValue != null ? inp.filterValue : ''
-                });
+            String fmt = String.isBlank(inp.reportFormat) ? 'TABULAR' : inp.reportFormat.toUpperCase().trim();
+            if (fmt != 'TABULAR' && fmt != 'SUMMARY' && fmt != 'MATRIX') {
+                out.success = false;
+                out.errorMessage = 'reportFormat must be TABULAR, SUMMARY, or MATRIX. Received: ' + inp.reportFormat;
+                return out;
             }
-            if (!reportFilters.isEmpty()) {
-                metadata.put('reportFilters', reportFilters);
+            if ((fmt == 'SUMMARY' || fmt == 'MATRIX') && String.isBlank(inp.groupingsDown)) {
+                out.success = false;
+                out.errorMessage = 'groupingsDown is required when reportFormat is ' + fmt;
+                return out;
             }
 
-            // Add groupings if provided (supports comma-separated multi-grouping)
-            if (!groupByCols.isEmpty()) {
-                List<Object> groupings = new List<Object>();
-                for (String gc : groupByCols) {
-                    groupings.add(new Map<String, Object>{
-                        'name'          => gc,
-                        'sortAggregate' => null,
-                        'sortOrder'     => 'Asc'
-                    });
-                }
-                metadata.put('groupingsDown', groupings);
+            List<Object> reportFilters = buildFilters(inp, out);
+            if (out.errorMessage != null) return out;
+
+            String folderId = null;
+            if (String.isNotBlank(inp.folderName)) {
+                folderId = resolveFolderId(inp.folderName);
             }
 
-            Map<String, Object> requestBody = new Map<String, Object>{
-                'reportMetadata' => metadata
-            };
+            String body = buildReportBody(inp, fmt, reportFilters, folderId);
+            String sessionId = getSessionId();
+            String baseUrl = URL.getOrgDomainUrl().toExternalForm();
 
-            // Call Analytics REST API
-            // UserInfo.getSessionId() returns null in async/agent contexts. Fall back to VF page trick.
-            String sessionId = UserInfo.getSessionId();
-            if (String.isBlank(sessionId)) {
-                sessionId = Test.isRunningTest() ? 'TEST_SESSION_ID' : Page.SessionId.getContent().toString().trim();
-            }
             HttpRequest req = new HttpRequest();
-            String baseUrl = System.URL.getOrgDomainUrl().toExternalForm();
-            req.setEndpoint(baseUrl + '/services/data/v65.0/analytics/reports');
+            req.setEndpoint(baseUrl + '/services/data/' + API_VERSION + '/analytics/reports');
             req.setMethod('POST');
             req.setHeader('Authorization', 'Bearer ' + sessionId);
             req.setHeader('Content-Type', 'application/json');
-            req.setBody(JSON.serialize(requestBody));
+            req.setTimeout(30000);
+            req.setBody(body);
 
             HttpResponse res = new Http().send(req);
 
@@ -118,62 +187,20 @@ public with sharing class AgentCreateReport {
                 Map<String, Object> result = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
                 Map<String, Object> attrs = (Map<String, Object>) result.get('attributes');
                 String reportId = (String) attrs.get('reportId');
+                String reportEndpoint = baseUrl + '/services/data/' + API_VERSION + '/analytics/reports/' + reportId;
 
-                String reportEndpoint = baseUrl + '/services/data/v65.0/analytics/reports/' + reportId;
-                Map<String, Object> createdMeta = (Map<String, Object>) result.get('reportMetadata');
-                if (createdMeta != null) {
-                    // PATCH 1: date filter — always works across all report types
-                    Map<String, Object> sdf = (Map<String, Object>) createdMeta.get('standardDateFilter');
-                    if (sdf != null) {
-                        sdf.put('durationValue', 'CUSTOM');
-                        sdf.put('startDate', null);
-                        sdf.put('endDate', null);
-                        HttpRequest dateReq = new HttpRequest();
-                        dateReq.setEndpoint(reportEndpoint);
-                        dateReq.setMethod('PATCH');
-                        dateReq.setHeader('Authorization', 'Bearer ' + sessionId);
-                        dateReq.setHeader('Content-Type', 'application/json');
-                        dateReq.setBody(JSON.serialize(new Map<String, Object>{
-                            'reportMetadata' => new Map<String, Object>{ 'standardDateFilter' => sdf }
-                        }));
-                        new Http().send(dateReq); // best-effort
-                    }
-                    // PATCH 2: scope — use input scope if provided, default to organization
-                    String requestedScope = String.isBlank(inp.scope) ? 'organization' : inp.scope.toLowerCase().trim();
-                    // Map common synonyms
-                    if (requestedScope == 'mine' || requestedScope == 'me' || requestedScope == 'my') {
-                        requestedScope = 'user';
-                    } else if (requestedScope == 'all' || requestedScope == 'org') {
-                        requestedScope = 'organization';
-                    }
-                    // Some report types use 'org' instead of 'organization' (e.g., LeadList) — try fallback
-                    List<String> scopesToTry = new List<String>{ requestedScope };
-                    if (requestedScope == 'organization') scopesToTry.add('org');
-                    for (String scopeVal : scopesToTry) {
-                        HttpRequest scopeReq = new HttpRequest();
-                        scopeReq.setEndpoint(reportEndpoint);
-                        scopeReq.setMethod('PATCH');
-                        scopeReq.setHeader('Authorization', 'Bearer ' + sessionId);
-                        scopeReq.setHeader('Content-Type', 'application/json');
-                        scopeReq.setBody('{"reportMetadata":{"scope":"' + scopeVal + '"}}');
-                        HttpResponse scopeRes = new Http().send(scopeReq);
-                        if (scopeRes.getStatusCode() == 200) break;
-                    }
-                }
+                patchDateFilter(result, reportEndpoint, sessionId, inp);
+                patchScope(reportEndpoint, sessionId, inp);
 
                 out.success = true;
                 out.reportId = reportId;
-                // Use lightning.force.com domain for browser-accessible URLs.
-                // getOrgDomainUrl() returns the API my-domain (*.my.salesforce.com);
-                // replace with lightning.force.com so the link works in the browser.
                 String lightningBase = baseUrl.replace('.my.salesforce.com', '.lightning.force.com');
                 out.reportUrl = lightningBase + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportPath = '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportName = (String) attrs.get('reportName');
             } else {
-                String errBody = res.getBody();
                 out.success = false;
-                out.errorMessage = 'API error ' + res.getStatusCode() + ': ' + errBody.abbreviate(300);
+                out.errorMessage = 'Analytics API error ' + res.getStatusCode() + ': ' + res.getBody().abbreviate(300);
             }
         } catch (Exception e) {
             out.success = false;
@@ -182,52 +209,221 @@ public with sharing class AgentCreateReport {
         return out;
     }
 
-    public class Input {
-        @InvocableVariable(required=true label='Report Name' description='Display name for the new report')
-        public String reportName;
+    @TestVisible
+    private static String buildReportBody(Input inp, String fmt, List<Object> reportFilters, String folderId) {
+        Set<String> groupBySet = new Set<String>();
+        List<String> groupsDown = splitTrimmed(inp.groupingsDown);
+        groupBySet.addAll(groupsDown);
+        if (String.isNotBlank(inp.groupingsAcross)) {
+            groupBySet.addAll(splitTrimmed(inp.groupingsAcross));
+        }
 
-        @InvocableVariable(required=true label='Report Type' description='Salesforce report type API name. Examples: CaseList, AccountList, Opportunity, ContactList, OrderList, OpportunityProduct, LeadList, AccountContact')
-        public String reportType;
+        List<String> detailCols = new List<String>();
+        for (String col : splitTrimmed(inp.columns)) {
+            if (!groupBySet.contains(col)) {
+                detailCols.add(col);
+            }
+        }
 
-        @InvocableVariable(required=false label='Columns (comma-separated)' description='Column API names to include. Examples: CASE_NUMBER,SUBJECT,STATUS,PRIORITY or ACCOUNT.NAME,AMOUNT,STAGE_NAME')
-        public String columns;
+        JSONGenerator gen = JSON.createGenerator(false);
+        gen.writeStartObject();
+        gen.writeFieldName('reportMetadata');
+        gen.writeStartObject();
 
-        @InvocableVariable(required=false label='Filter Column' description='Column API name to filter on. Example: STATUS or CLOSED')
-        public String filterColumn;
+        gen.writeStringField('name', inp.reportName.left(40));
+        gen.writeStringField('developerName', sanitizeDeveloperName(inp.reportName));
+        gen.writeStringField('reportFormat', fmt);
 
-        @InvocableVariable(required=false label='Filter Operator' description='Filter operator. Values: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith, includes, excludes')
-        public String filterOperator;
+        gen.writeFieldName('reportType');
+        gen.writeStartObject();
+        gen.writeStringField('type', inp.reportType);
+        gen.writeEndObject();
 
-        @InvocableVariable(required=false label='Filter Value' description='Value to filter by. Example: Closed or 0')
-        public String filterValue;
+        gen.writeFieldName('detailColumns');
+        gen.writeStartArray();
+        for (String col : detailCols) {
+            gen.writeString(col);
+        }
+        gen.writeEndArray();
 
-        @InvocableVariable(required=false label='Group By Column' description='Column API name to group rows by in a Summary report. Example: Case.Case_Category__c or STAGE_NAME')
-        public String groupByColumn;
+        if (!groupsDown.isEmpty()) {
+            gen.writeFieldName('groupingsDown');
+            gen.writeStartArray();
+            for (String g : groupsDown) {
+                gen.writeStartObject();
+                gen.writeStringField('name', g);
+                gen.writeStringField('sortOrder', 'Asc');
+                gen.writeStringField('dateGranularity', 'None');
+                gen.writeEndObject();
+            }
+            gen.writeEndArray();
+        }
 
-        @InvocableVariable(required=false label='Scope' description='Whose records to include. Use "user" for "my X" prompts (records owned by the running user), "team" for "my team\'s X", or "organization" for "all X" across the whole org. Defaults to "organization".')
-        public String scope;
+        if (String.isNotBlank(inp.groupingsAcross)) {
+            List<String> groupsAcross = splitTrimmed(inp.groupingsAcross);
+            gen.writeFieldName('groupingsAcross');
+            gen.writeStartArray();
+            for (String g : groupsAcross) {
+                gen.writeStartObject();
+                gen.writeStringField('name', g);
+                gen.writeStringField('sortOrder', 'Asc');
+                gen.writeStringField('dateGranularity', 'None');
+                gen.writeEndObject();
+            }
+            gen.writeEndArray();
+        }
 
-        @InvocableVariable(required=false label='Filters JSON' description='JSON array of filter objects for multi-filter reports. Use this when more than one filter is needed. Each object: {"column":"FIELD","operator":"equals","value":"X"}. Example: [{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"},{"column":"CLOSE_DATE","operator":"greaterThan","value":"2026-01-01"}]. Operators: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith. If both filtersJson and filterColumn are provided, filtersJson wins.')
-        public String filtersJson;
+        if (!reportFilters.isEmpty()) {
+            gen.writeFieldName('reportFilters');
+            gen.writeStartArray();
+            for (Object filterObj : reportFilters) {
+                Map<String, Object> f = (Map<String, Object>) filterObj;
+                gen.writeStartObject();
+                gen.writeStringField('column', (String) f.get('column'));
+                gen.writeStringField('operator', (String) f.get('operator'));
+                gen.writeStringField('value', (String) f.get('value'));
+                gen.writeEndObject();
+            }
+            gen.writeEndArray();
+        }
+
+        if (String.isNotBlank(inp.dateFilter) && inp.dateFilter.contains(':')) {
+            List<String> parts = inp.dateFilter.split(':', 2);
+            gen.writeFieldName('standardDateFilter');
+            gen.writeStartObject();
+            gen.writeStringField('column', parts[0].trim());
+            gen.writeStringField('durationValue', parts[1].trim());
+            gen.writeNullField('startDate');
+            gen.writeNullField('endDate');
+            gen.writeEndObject();
+        }
+
+        if (String.isNotBlank(folderId)) {
+            gen.writeStringField('folderId', folderId);
+        }
+
+        gen.writeEndObject();
+        gen.writeEndObject();
+
+        return gen.getAsString();
     }
 
-    public class Output {
-        @InvocableVariable
-        public Boolean success;
+    @TestVisible
+    private static List<Object> buildFilters(Input inp, Output out) {
+        List<Object> filters = new List<Object>();
+        if (String.isNotBlank(inp.filtersJson)) {
+            try {
+                List<Object> rawFilters = (List<Object>) JSON.deserializeUntyped(inp.filtersJson);
+                for (Object rawFilter : rawFilters) {
+                    Map<String, Object> f = (Map<String, Object>) rawFilter;
+                    filters.add(new Map<String, Object>{
+                        'column'   => String.valueOf(f.get('column')),
+                        'operator' => String.valueOf(f.get('operator')),
+                        'value'    => f.get('value') != null ? String.valueOf(f.get('value')) : ''
+                    });
+                }
+            } catch (Exception e) {
+                out.success = false;
+                out.errorMessage = 'Invalid filtersJson format: ' + e.getMessage();
+            }
+        } else if (String.isNotBlank(inp.filterColumn) && String.isNotBlank(inp.filterOperator)) {
+            filters.add(new Map<String, Object>{
+                'column'   => inp.filterColumn,
+                'operator' => inp.filterOperator,
+                'value'    => inp.filterValue != null ? inp.filterValue : ''
+            });
+        }
+        return filters;
+    }
 
-        @InvocableVariable
-        public String reportId;
+    private static void patchDateFilter(Map<String, Object> result, String reportEndpoint, String sessionId, Input inp) {
+        if (String.isNotBlank(inp.dateFilter)) return;
+        Map<String, Object> createdMeta = (Map<String, Object>) result.get('reportMetadata');
+        if (createdMeta == null) return;
+        Map<String, Object> sdf = (Map<String, Object>) createdMeta.get('standardDateFilter');
+        if (sdf == null) return;
+        sdf.put('durationValue', 'CUSTOM');
+        sdf.put('startDate', null);
+        sdf.put('endDate', null);
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint(reportEndpoint);
+        req.setMethod('PATCH');
+        req.setHeader('Authorization', 'Bearer ' + sessionId);
+        req.setHeader('Content-Type', 'application/json');
+        req.setBody(JSON.serialize(new Map<String, Object>{
+            'reportMetadata' => new Map<String, Object>{ 'standardDateFilter' => sdf }
+        }));
+        new Http().send(req);
+    }
 
-        @InvocableVariable
-        public String reportUrl;
+    private static void patchScope(String reportEndpoint, String sessionId, Input inp) {
+        String requestedScope = String.isBlank(inp.scope) ? 'organization' : inp.scope.toLowerCase().trim();
+        if (requestedScope == 'mine' || requestedScope == 'me' || requestedScope == 'my') {
+            requestedScope = 'user';
+        } else if (requestedScope == 'all' || requestedScope == 'org') {
+            requestedScope = 'organization';
+        }
+        List<String> scopesToTry = new List<String>{ requestedScope };
+        if (requestedScope == 'organization') scopesToTry.add('org');
+        for (String scopeVal : scopesToTry) {
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(reportEndpoint);
+            req.setMethod('PATCH');
+            req.setHeader('Authorization', 'Bearer ' + sessionId);
+            req.setHeader('Content-Type', 'application/json');
+            req.setBody('{"reportMetadata":{"scope":"' + scopeVal + '"}}');
+            HttpResponse res = new Http().send(req);
+            if (res.getStatusCode() == 200) break;
+        }
+    }
 
-        @InvocableVariable(label='Report Path' description='Relative path to the report, e.g. /lightning/r/Report/00O.../view. Use this as a fallback when the full URL is unavailable.')
-        public String reportPath;
+    @TestVisible
+    private static String resolveFolderId(String folderName) {
+        List<Folder> folders = [
+            SELECT Id FROM Folder
+            WHERE Name = :folderName AND Type = 'Report'
+            LIMIT 1
+        ];
+        return folders.isEmpty() ? null : folders[0].Id;
+    }
 
-        @InvocableVariable
-        public String reportName;
+    @TestVisible
+    private static String getSessionId() {
+        String sessionId = UserInfo.getSessionId();
+        if (String.isBlank(sessionId)) {
+            sessionId = Test.isRunningTest() ? 'TEST_SESSION_ID' : Page.SessionId.getContent().toString().trim();
+        }
+        return sessionId;
+    }
 
-        @InvocableVariable
-        public String errorMessage;
+    @TestVisible
+    private static String sanitizeDeveloperName(String name) {
+        if (String.isBlank(name)) {
+            return 'Report_' + String.valueOf(System.currentTimeMillis()).right(8);
+        }
+        String sanitized = name.replaceAll('[^a-zA-Z0-9]', '_');
+        sanitized = sanitized.replaceAll('_{2,}', '_');
+        sanitized = sanitized.replaceAll('^_+|_+$', '');
+        if (String.isBlank(sanitized)) {
+            return 'Report_' + String.valueOf(System.currentTimeMillis()).right(8);
+        }
+        if (!sanitized.substring(0, 1).isAlpha()) {
+            sanitized = 'R_' + sanitized;
+        }
+        if (sanitized.length() > 80) {
+            sanitized = sanitized.substring(0, 80);
+        }
+        return sanitized;
+    }
+
+    @TestVisible
+    private static List<String> splitTrimmed(String csv) {
+        List<String> result = new List<String>();
+        if (String.isBlank(csv)) return result;
+        for (String s : csv.split(',')) {
+            String trimmed = s.trim();
+            if (String.isNotBlank(trimmed)) result.add(trimmed);
+        }
+        return result;
     }
 }
