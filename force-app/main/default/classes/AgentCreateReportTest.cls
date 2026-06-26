@@ -18,7 +18,7 @@ public class AgentCreateReportTest {
 
         System.assertEquals(true, results[0].success);
         System.assertEquals('00Og5000003TESTEA0', results[0].reportId);
-        System.assert(results[0].reportUrl.contains('lightning.force.com'));
+        System.assert(results[0].reportUrl.contains('/lightning/r/Report/'));
         System.assert(results[0].reportPath.startsWith('/lightning/r/Report/'));
     }
 
@@ -102,6 +102,25 @@ public class AgentCreateReportTest {
         Test.stopTest();
 
         System.assertEquals(true, results[0].success);
+    }
+
+    @IsTest
+    static void testLongNameTruncation() {
+        Test.setMock(HttpCalloutMock.class, new MockSuccess());
+
+        AgentCreateReport.Input inp = new AgentCreateReport.Input();
+        inp.reportName = 'All Closed Won Opportunities by Stage and Close Date for This Year';
+        inp.reportType = 'Opportunity';
+        inp.columns = 'OPPORTUNITY.NAME,AMOUNT';
+
+        Test.startTest();
+        List<AgentCreateReport.Output> results = AgentCreateReport.createReport(
+            new List<AgentCreateReport.Input>{ inp }
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].success);
+        System.assert(results[0].reportName.contains('note: name was truncated'));
     }
 
     @IsTest

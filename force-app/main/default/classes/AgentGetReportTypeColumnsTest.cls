@@ -57,6 +57,32 @@ private class AgentGetReportTypeColumnsTest {
         }
     }
 
+    private class MockDescribeSuccess implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/json');
+            res.setStatusCode(200);
+            res.setBody('{'
+                + '"reportMetadata":{"detailColumns":["CASE_NUMBER","STATUS","ACCOUNT_NAME","SUBJECT","DATE_OPENED"]},'
+                + '"reportExtendedMetadata":{'
+                +   '"detailColumnInfo":{'
+                +     '"CASE_NUMBER":{"label":"Case Number","dataType":"string"},'
+                +     '"STATUS":{"label":"Status","dataType":"picklist"},'
+                +     '"ACCOUNT_NAME":{"label":"Account Name","dataType":"string"},'
+                +     '"SUBJECT":{"label":"Subject","dataType":"string"},'
+                +     '"DATE_OPENED":{"label":"Date Opened","dataType":"date"},'
+                +     '"AMOUNT":{"label":"Amount","dataType":"currency"},'
+                +     '"PRIORITY":{"label":"Priority","dataType":"picklist"},'
+                +     '"OWNER":{"label":"Case Owner","dataType":"string"},'
+                +     '"ORIGIN":{"label":"Case Origin","dataType":"picklist"},'
+                +     '"TYPE":{"label":"Type","dataType":"picklist"}'
+                +   '}'
+                + '}'
+                + '}');
+            return res;
+        }
+    }
+
     // Custom report type response: only 1 column in detailColumnInfo (default), but full set in reportTypeMetadata.categories
     private class MockCustomReportType implements HttpCalloutMock {
         public HTTPResponse respond(HTTPRequest req) {
@@ -224,5 +250,43 @@ private class AgentGetReportTypeColumnsTest {
         System.assert(output.columnCount >= 5, 'Should merge detailColumnInfo + categories columns; got ' + output.columnCount);
         System.assert(output.columnsJson.contains('Opportunity.Binder_Sent_Date__c'), 'Should include category columns');
         System.assert(output.columnsJson.contains('Opportunity.Case_Designer__c.Name'), 'Should include lookup name columns');
+    }
+
+    @IsTest
+    static void testFilterKeyword() {
+        Test.setMock(HttpCalloutMock.class, new MockDescribeSuccess());
+        AgentGetReportTypeColumns.Input input = new AgentGetReportTypeColumns.Input();
+        input.reportType = 'CaseList';
+        input.filterKeyword = 'Status';
+        Test.startTest();
+        List<AgentGetReportTypeColumns.Output> results = AgentGetReportTypeColumns.getColumns(
+            new List<AgentGetReportTypeColumns.Input>{ input }
+        );
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testMaxResults() {
+        Test.setMock(HttpCalloutMock.class, new MockDescribeSuccess());
+        AgentGetReportTypeColumns.Input input = new AgentGetReportTypeColumns.Input();
+        input.reportType = 'CaseList';
+        input.maxResults = 5;
+        Test.startTest();
+        List<AgentGetReportTypeColumns.Output> results = AgentGetReportTypeColumns.getColumns(
+            new List<AgentGetReportTypeColumns.Input>{ input }
+        );
+        Test.stopTest();
+    }
+
+    @IsTest
+    static void testFilterByKeywordMethod() {
+        List<Map<String, String>> testCols = new List<Map<String, String>>();
+        testCols.add(new Map<String, String>{ 'apiName' => 'AMOUNT', 'label' => 'Amount' });
+        testCols.add(new Map<String, String>{ 'apiName' => 'STATUS', 'label' => 'Status' });
+        testCols.add(new Map<String, String>{ 'apiName' => 'CASE_NUMBER', 'label' => 'Case Number' });
+
+        List<Map<String, String>> filtered = AgentGetReportTypeColumns.filterByKeyword(testCols, 'amount');
+        System.assertEquals(1, filtered.size());
+        System.assertEquals('AMOUNT', filtered[0].get('apiName'));
     }
 }

@@ -194,10 +194,12 @@ public with sharing class AgentCreateReport {
 
                 out.success = true;
                 out.reportId = reportId;
-                String lightningBase = baseUrl.replace('.my.salesforce.com', '.lightning.force.com');
-                out.reportUrl = lightningBase + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
+                out.reportUrl = baseUrl + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportPath = '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportName = (String) attrs.get('reportName');
+                if (inp.reportName != null && inp.reportName.length() > 40) {
+                    out.reportName = out.reportName + ' (note: name was truncated from "' + inp.reportName + '")';
+                }
             } else {
                 out.success = false;
                 out.errorMessage = 'Analytics API error ' + res.getStatusCode() + ': ' + res.getBody().abbreviate(300);

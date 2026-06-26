@@ -42,8 +42,8 @@
     <apiVersion>65.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <environments>Default</environments>
-    <interviewLabel>Agent - ALF - List Report Types {!$Flow.CurrentDateTime}</interviewLabel>
-    <label>Agent - ALF - List Report Types</label>
+    <interviewLabel>WSM - ALF - Agent: List Report Types {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>WSM - ALF - Agent: List Report Types</label>
     <processMetadataValues>
         <name>BuilderType</name>
         <value>

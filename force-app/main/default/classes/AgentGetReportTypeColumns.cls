@@ -18,6 +18,20 @@ public with sharing class AgentGetReportTypeColumns {
             description='The report type API name to inspect. Example: CampaignList, ProductList, ContractList. Obtain this from List Report Types.'
         )
         public String reportType;
+
+        @InvocableVariable(
+            required=false
+            label='Filter Keyword'
+            description='Optional keyword to filter columns by label or API name. Case-insensitive. Example: "Amount" returns only columns containing "Amount". Leave blank to return all columns.'
+        )
+        public String filterKeyword;
+
+        @InvocableVariable(
+            required=false
+            label='Max Results'
+            description='Maximum number of columns to return. Defaults to all columns if not provided. Use lower values to reduce response size when browsing.'
+        )
+        public Integer maxResults;
     }
 
     public class Output {
@@ -158,6 +172,15 @@ public with sharing class AgentGetReportTypeColumns {
                 }
             }
 
+            if (input.filterKeyword != null && String.isNotBlank(input.filterKeyword)) {
+                columns = filterByKeyword(columns, input.filterKeyword.trim());
+            }
+            if (input.maxResults != null && input.maxResults > 0 && columns.size() > input.maxResults) {
+                while (columns.size() > input.maxResults) {
+                    columns.remove(columns.size() - 1);
+                }
+            }
+
             output.columnsJson = JSON.serialize(columns);
             output.defaultColumnsJson = JSON.serialize(defaultCols);
             output.columnCount = columns.size();
@@ -171,6 +194,22 @@ public with sharing class AgentGetReportTypeColumns {
             output.columnsJson = '[]';
         }
         return output;
+    }
+
+    @TestVisible
+    private static List<Map<String, String>> filterByKeyword(
+        List<Map<String, String>> columns, String keyword
+    ) {
+        String lower = keyword.toLowerCase();
+        List<Map<String, String>> filtered = new List<Map<String, String>>();
+        for (Map<String, String> col : columns) {
+            String label = col.get('label') != null ? col.get('label').toLowerCase() : '';
+            String apiName = col.get('apiName') != null ? col.get('apiName').toLowerCase() : '';
+            if (label.contains(lower) || apiName.contains(lower)) {
+                filtered.add(col);
+            }
+        }
+        return filtered;
     }
 
     @TestVisible

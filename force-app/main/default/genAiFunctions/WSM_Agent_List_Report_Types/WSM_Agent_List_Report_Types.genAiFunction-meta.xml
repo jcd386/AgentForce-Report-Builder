@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Lists available Salesforce report types. Use this as the FIRST step when building any report. Pass a keyword to filter results (e.g., &quot;Opportunity&quot; or &quot;Case&quot;). The returned apiName values are what you pass to Get Report Type Columns and Create Salesforce Report. Do not guess report type names — always call this action to discover them.</description>
+    <description>Lists available Salesforce report types. Use as the FIRST step when building any report. Pass filterKeyword to narrow results (e.g., &quot;Opportunity&quot;, &quot;Case&quot;) and maxResults to limit count (default 50, max 200). The returned apiName values are what you pass to Get Report Type Columns and Create Report. Do not guess report type names — always call this action.</description>
     <invocationTarget>WSM_ALF_Agent_List_Report_Types</invocationTarget>
     <invocationTargetType>flow</invocationTargetType>
     <masterLabel>WSM - ALF - Agent: List Report Types</masterLabel>

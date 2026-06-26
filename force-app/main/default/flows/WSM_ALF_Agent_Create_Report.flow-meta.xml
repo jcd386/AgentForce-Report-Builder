@@ -33,6 +33,24 @@
             </value>
         </inputParameters>
         <inputParameters>
+            <name>reportFormat</name>
+            <value>
+                <elementReference>reportFormat</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>groupingsDown</name>
+            <value>
+                <elementReference>groupingsDown</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>groupingsAcross</name>
+            <value>
+                <elementReference>groupingsAcross</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
             <name>filterColumn</name>
             <value>
                 <elementReference>filterColumn</elementReference>
@@ -51,9 +69,27 @@
             </value>
         </inputParameters>
         <inputParameters>
-            <name>groupByColumn</name>
+            <name>filtersJson</name>
             <value>
-                <elementReference>groupByColumn</elementReference>
+                <elementReference>filtersJson</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>dateFilter</name>
+            <value>
+                <elementReference>dateFilter</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>scope</name>
+            <value>
+                <elementReference>scope</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>folderName</name>
+            <value>
+                <elementReference>folderName</elementReference>
             </value>
         </inputParameters>
         <nameSegment>AgentCreateReport</nameSegment>
@@ -68,6 +104,10 @@
         <outputParameters>
             <assignToReference>reportUrl</assignToReference>
             <name>reportUrl</name>
+        </outputParameters>
+        <outputParameters>
+            <assignToReference>reportPath</assignToReference>
+            <name>reportPath</name>
         </outputParameters>
         <outputParameters>
             <assignToReference>createdReportName</assignToReference>
@@ -114,8 +154,8 @@
         </assignmentItems>
     </assignments>
     <environments>Default</environments>
-    <interviewLabel>Agent - ALF - Create Report {!$Flow.CurrentDateTime}</interviewLabel>
-    <label>Agent - ALF - Create Report</label>
+    <interviewLabel>WSM - ALF - Agent: Create Report {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>WSM - ALF - Agent: Create Report</label>
     <processMetadataValues>
         <name>BuilderType</name>
         <value>
@@ -144,71 +184,7 @@
     </start>
     <status>Active</status>
     <variables>
-        <description>Comma-separated column API names. For CaseList: CASE_NUMBER,SUBJECT,STATUS,PRIORITY. For AccountList: ACCOUNT.NAME,ACCOUNT.INDUSTRY. For OpportunityList: OPPORTUNITY_NAME,AMOUNT,STAGE_NAME,CLOSE_DATE</description>
-        <name>columns</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <description>Name of the created report as confirmed by the API</description>
-        <name>createdReportName</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>false</isInput>
-        <isOutput>true</isOutput>
-    </variables>
-    <variables>
-        <description>Error details if success is false</description>
-        <name>errorMessage</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>false</isInput>
-        <isOutput>true</isOutput>
-    </variables>
-    <variables>
-        <description>Column API name to filter on (optional). Example: STATUS or CLOSED</description>
-        <name>filterColumn</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <description>Filter operator (optional). Values: equals, notEqual, lessThan, greaterThan, contains, notContain, startsWith</description>
-        <name>filterOperator</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <description>Value to filter by (optional). Example: Closed or 0</description>
-        <name>filterValue</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <description>Column API name to group rows by in a Summary report (optional). Supports comma-separated values for multi-level grouping. Example: Case.Case_Category__c or STAGE_NAME,FULL_NAME</description>
-        <name>groupByColumn</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>true</isInput>
-        <isOutput>false</isOutput>
-    </variables>
-    <variables>
-        <description>Salesforce ID of the newly created report</description>
-        <name>reportId</name>
-        <dataType>String</dataType>
-        <isCollection>false</isCollection>
-        <isInput>false</isInput>
-        <isOutput>true</isOutput>
-    </variables>
-    <variables>
-        <description>Display name for the new report</description>
+        <description>Display name for the new report. Truncated to 40 characters if longer.</description>
         <name>reportName</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -216,7 +192,7 @@
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Salesforce report type API name. Examples: CaseList, AccountList, Opportunity, ContactList, OrderList, LeadList</description>
+        <description>Report type API name from List Report Types. Examples: CaseList, AccountList, Opportunity, ContactList, LeadList.</description>
         <name>reportType</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
@@ -224,15 +200,95 @@
         <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>Direct URL to open the newly created report</description>
-        <name>reportUrl</name>
+        <description>Comma-separated column API names from Get Report Type Columns. Do not include group-by columns here.</description>
+        <name>columns</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
-        <isInput>false</isInput>
-        <isOutput>true</isOutput>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
     </variables>
     <variables>
-        <description>True if the report was created successfully</description>
+        <description>TABULAR (flat list, default), SUMMARY (grouped with subtotals), or MATRIX (row and column groupings).</description>
+        <name>reportFormat</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Comma-separated column API names for row groupings. Required when format is SUMMARY or MATRIX. Maximum 3.</description>
+        <name>groupingsDown</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Comma-separated column API names for column groupings. Only used when format is MATRIX. Maximum 3.</description>
+        <name>groupingsAcross</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Column API name to filter on for a single filter. Use Filters JSON instead when multiple filters are needed.</description>
+        <name>filterColumn</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Filter operator: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith.</description>
+        <name>filterOperator</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Value to filter by. Use YYYY-MM-DD for dates, true/false for booleans.</description>
+        <name>filterValue</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>JSON array of filter objects for multi-filter reports. Each object: {"column":"FIELD","operator":"equals","value":"X"}. Takes precedence over single filter fields.</description>
+        <name>filtersJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Standard date filter. Format: "FIELD:RANGE" (e.g., "CLOSE_DATE:THIS_FISCAL_YEAR"). Ranges: THIS_FISCAL_QUARTER, LAST_FISCAL_QUARTER, THIS_FISCAL_YEAR, LAST_FISCAL_YEAR, THIS_MONTH, LAST_MONTH, LAST_30_DAYS, LAST_90_DAYS, CUSTOM.</description>
+        <name>dateFilter</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Whose records to include: "user" for my records, "team" for my team, "organization" for all records. Defaults to "organization".</description>
+        <name>scope</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Name of the report folder to save the report in. Leave blank for the user's private reports folder.</description>
+        <name>folderName</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>True if the report was created successfully.</description>
         <name>success</name>
         <dataType>Boolean</dataType>
         <isCollection>false</isCollection>
@@ -241,5 +297,45 @@
         <value>
             <booleanValue>false</booleanValue>
         </value>
+    </variables>
+    <variables>
+        <description>Salesforce ID of the newly created report.</description>
+        <name>reportId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Full URL to open the report in Lightning.</description>
+        <name>reportUrl</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Relative path to the report. Fallback when full URL is unavailable.</description>
+        <name>reportPath</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Display name of the created report as confirmed by the API.</description>
+        <name>createdReportName</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Error details if success is false.</description>
+        <name>errorMessage</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
     </variables>
 </Flow>

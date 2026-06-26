@@ -15,6 +15,18 @@
                 <elementReference>reportType</elementReference>
             </value>
         </inputParameters>
+        <inputParameters>
+            <name>filterKeyword</name>
+            <value>
+                <elementReference>filterKeyword</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>maxResults</name>
+            <value>
+                <elementReference>maxResults</elementReference>
+            </value>
+        </inputParameters>
         <nameSegment>AgentGetReportTypeColumns</nameSegment>
         <outputParameters>
             <assignToReference>columnsJson</assignToReference>
@@ -40,8 +52,8 @@
     <apiVersion>65.0</apiVersion>
     <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <environments>Default</environments>
-    <interviewLabel>Agent - ALF - Get Report Type Columns {!$Flow.CurrentDateTime}</interviewLabel>
-    <label>Agent - ALF - Get Report Type Columns</label>
+    <interviewLabel>WSM - ALF - Agent: Get Report Type Columns {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>WSM - ALF - Agent: Get Report Type Columns</label>
     <processMetadataValues>
         <name>BuilderType</name>
         <value>
@@ -117,5 +129,22 @@
         <isCollection>false</isCollection>
         <isInput>false</isInput>
         <isOutput>true</isOutput>
+    </variables>
+    <variables>
+        <description>Optional keyword to filter columns by label or API name. Case-insensitive. Example: "Amount" returns only columns containing "Amount". Leave blank to return all columns.</description>
+        <name>filterKeyword</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Maximum number of columns to return. Defaults to all columns if not provided. Use lower values to reduce response size.</description>
+        <name>maxResults</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+        <scale>0</scale>
     </variables>
 </Flow>

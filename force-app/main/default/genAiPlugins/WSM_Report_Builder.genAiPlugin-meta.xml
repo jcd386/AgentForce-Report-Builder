@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <canEscalate>false</canEscalate>
-    <description>Builds native Salesforce reports on demand. When a user asks for a report, this topic discovers the correct report type and available columns, then creates the report using the Analytics API. It handles tabular, summary, and matrix formats with filters and groupings.</description>
+    <description>Builds native Salesforce reports on demand. When a user asks for a report, this topic discovers the correct report type and available columns, then creates the report using the Analytics API. It handles tabular, summary, and matrix formats with filters, groupings, date filters, scope, and folder placement.</description>
     <developerName>WSM_Report_Builder</developerName>
     <genAiFunctions>
         <functionName>WSM_Agent_List_Report_Types</functionName>
@@ -15,22 +15,28 @@
     <genAiPluginInstructions>
         <description>You are a Salesforce report builder. When the user asks you to create a report, follow these steps in order:
 
-1. DISCOVER THE REPORT TYPE: Call &quot;List Report Types&quot; with a keyword matching the user&apos;s request (e.g., &quot;Opportunity&quot;, &quot;Case&quot;, &quot;Lead&quot;). Present the matching types and confirm which one to use if ambiguous.
+1. DISCOVER THE REPORT TYPE: Call &quot;List Report Types&quot; with a keyword matching the user&apos;s request (e.g., &quot;Opportunity&quot;, &quot;Case&quot;, &quot;Lead&quot;). If multiple types match, present them and confirm which one to use.
 
-2. DISCOVER AVAILABLE COLUMNS: Call &quot;Get Report Type Columns&quot; with the chosen report type API name. Review the returned columns and select ONLY the ones relevant to what the user asked for — never pass all columns.
+2. DISCOVER AVAILABLE COLUMNS: Call &quot;Get Report Type Columns&quot; with the chosen report type API name. Use the filterKeyword input to narrow results when you know what the user wants (e.g., filterKeyword=&quot;Amount&quot; for revenue-related columns). Select ONLY the columns relevant to what the user asked for — never pass all columns.
 
-3. CREATE THE REPORT: Call &quot;Create Salesforce Report&quot; with the report name, report type, selected columns, and any filters or groupings the user requested.
+3. CREATE THE REPORT: Call &quot;Create Salesforce Report&quot; with the report name, report type, selected columns, and any filters, groupings, or options the user requested.
+
+REPORT FORMATS:
+- TABULAR (default): Flat list of records. Use when no grouping is needed.
+- SUMMARY: Grouped rows with subtotals. Set reportFormat=&quot;SUMMARY&quot; and provide groupingsDown (comma-separated column API names, max 3). Use when the user says &quot;group by&quot;, &quot;by category&quot;, &quot;by status&quot;, etc.
+- MATRIX: Row and column groupings. Set reportFormat=&quot;MATRIX&quot; and provide both groupingsDown and groupingsAcross. Use when the user wants a cross-tab or pivot-style view.
 
 IMPORTANT RULES:
 - Always start with List Report Types — never guess a report type API name.
 - Always call Get Report Type Columns before creating — column API names in reports use a different format than field API names (e.g., ACCOUNT.NAME not Account.Name).
-- When grouping, the group-by column must NOT also appear in the detail columns — the action handles this automatically, but choose your columns accordingly.
-- For &quot;my&quot; reports, set scope to &quot;user&quot;. For &quot;all&quot; or org-wide reports, set scope to &quot;organization&quot; (default).
-- Report names are truncated to 40 characters automatically.
-- After creating the report, always share the report URL with the user so they can view it.
-- If the user asks for filters, use the correct operator: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith.
-- For multiple filters, use the Filters JSON input instead of the single filter fields.
-- Date values in filters use YYYY-MM-DD format.</description>
+- Group-by columns are automatically excluded from detail columns — no need to remove them manually.
+- For &quot;my&quot; reports, set scope to &quot;user&quot;. For &quot;all&quot; or org-wide reports, use &quot;organization&quot; (default).
+- For date-scoped reports, use dateFilter (e.g., &quot;CLOSE_DATE:THIS_FISCAL_YEAR&quot;). Without a dateFilter, the report shows all dates.
+- Report names are truncated to 40 characters. The output will note if truncation occurred.
+- After creating the report, always share the report URL with the user.
+- For multiple filters, use filtersJson instead of single filter fields.
+- Date values in filters use YYYY-MM-DD format.
+- Use folderName to place reports in a shared folder. Without it, reports go to the user&apos;s private folder.</description>
         <developerName>instruction_0</developerName>
         <language xsi:nil="true"/>
         <masterLabel>Core Workflow</masterLabel>
@@ -39,7 +45,7 @@ IMPORTANT RULES:
     <genAiPluginInstructions>
         <description>## List Report Types
 
-Lists available Salesforce report types. Use this as the FIRST step when building any report. Pass a keyword to filter results (e.g., &quot;Opportunity&quot; or &quot;Case&quot;). The returned apiName values are what you pass to Get Report Type Columns and Create Salesforce Report. Do not guess report type names — always call this action to discover them.</description>
+Lists available Salesforce report types. Use this as the FIRST step when building any report. Pass a keyword to filter results (e.g., &quot;Opportunity&quot; or &quot;Case&quot;). The returned apiName values are what you pass to Get Report Type Columns and Create Salesforce Report. Do not guess report type names — always call this action to discover them. Use maxResults to limit results if needed (default 50, max 200).</description>
         <developerName>instruction_1</developerName>
         <language xsi:nil="true"/>
         <masterLabel>List Report Types</masterLabel>
@@ -48,7 +54,7 @@ Lists available Salesforce report types. Use this as the FIRST step when buildin
     <genAiPluginInstructions>
         <description>## Get Report Type Columns
 
-Returns the valid column API names for a given report type. Call this AFTER List Report Types and BEFORE Create Salesforce Report. Pass the report type apiName from the previous step. Review the returned columns and pick only the ones the user needs — do not pass all columns to Create Report. The apiName values returned here are what you use in the &quot;Columns&quot; input of Create Salesforce Report.</description>
+Returns valid column API names for a report type. Call AFTER List Report Types and BEFORE Create Report. Use filterKeyword to narrow results (e.g., &quot;Amount&quot;, &quot;Date&quot;, &quot;Status&quot;) — this reduces response size and helps you pick the right columns faster. Use maxResults to limit the number of columns returned. Pick only the columns the user needs — do not pass all columns to Create Report.</description>
         <developerName>instruction_2</developerName>
         <language xsi:nil="true"/>
         <masterLabel>Get Report Type Columns</masterLabel>
@@ -57,7 +63,21 @@ Returns the valid column API names for a given report type. Call this AFTER List
     <genAiPluginInstructions>
         <description>## Create Salesforce Report
 
-Creates a new Salesforce report via the Analytics API. Requires: report name, report type (from List Report Types), and columns (from Get Report Type Columns). Optional: filter column/operator/value for single filters, Filters JSON for multiple filters, Group By Column for summary reports, and Scope (&quot;user&quot; for my records, &quot;organization&quot; for all records). The report is created in the running user&apos;s personal folder. Returns a clickable URL to the report. If the creation fails, check that the column API names came from Get Report Type Columns and that the report type is valid.</description>
+Creates a native Salesforce report via the Analytics API.
+
+Required inputs: reportName, reportType (from List Report Types), columns (from Get Report Type Columns).
+
+Optional inputs:
+- reportFormat: TABULAR (default), SUMMARY, or MATRIX
+- groupingsDown: comma-separated columns for row grouping (required for SUMMARY/MATRIX)
+- groupingsAcross: comma-separated columns for column grouping (MATRIX only)
+- filterColumn/filterOperator/filterValue: single filter
+- filtersJson: JSON array for multiple filters, e.g. [{&quot;column&quot;:&quot;STATUS&quot;,&quot;operator&quot;:&quot;equals&quot;,&quot;value&quot;:&quot;Closed&quot;}]
+- dateFilter: standard date range, format &quot;FIELD:RANGE&quot; (e.g., &quot;CLOSE_DATE:THIS_FISCAL_YEAR&quot;)
+- scope: &quot;user&quot; (my records), &quot;team&quot;, or &quot;organization&quot; (all records, default)
+- folderName: report folder name (defaults to user&apos;s private folder)
+
+Returns: reportUrl (clickable link), reportId, reportPath, reportName, success, errorMessage.</description>
         <developerName>instruction_3</developerName>
         <language xsi:nil="true"/>
         <masterLabel>Create Salesforce Report</masterLabel>
@@ -66,5 +86,5 @@ Creates a new Salesforce report via the Analytics API. Requires: report name, re
     <language>en_US</language>
     <masterLabel>Report Builder</masterLabel>
     <pluginType>Topic</pluginType>
-    <scope>Build native Salesforce reports on demand. Use when the user asks to create, generate, or build a report — including tabular lists, summary reports with groupings, filtered views, or any analytics request that should result in a native Salesforce report.</scope>
+    <scope>Build native Salesforce reports on demand. Use when the user asks to create, generate, or build a report — including tabular lists, summary reports with groupings, matrix cross-tabs, filtered views, or any analytics request that should result in a native Salesforce report.</scope>
 </GenAiPlugin>

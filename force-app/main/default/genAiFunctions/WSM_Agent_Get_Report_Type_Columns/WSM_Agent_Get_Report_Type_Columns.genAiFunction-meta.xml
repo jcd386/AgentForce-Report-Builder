@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Returns the valid column API names for a given report type. Call this AFTER List Report Types and BEFORE Create Salesforce Report. Pass the report type apiName from the previous step. Review the returned columns and pick only the ones the user needs — do not pass all columns to Create Report. The apiName values returned here are what you use in the &quot;Columns&quot; input of Create Salesforce Report.</description>
+    <description>Returns valid column API names for a given report type. Call AFTER List Report Types and BEFORE Create Report. Pass the reportType apiName. Use filterKeyword to narrow results (e.g., &quot;Amount&quot;, &quot;Date&quot;) and maxResults to cap the count. Pick only columns the user needs — do not pass all columns. The apiName values returned are what you use in the columns input of Create Report.</description>
     <invocationTarget>WSM_ALF_Agent_Get_Report_Type_Columns</invocationTarget>
     <invocationTargetType>flow</invocationTargetType>
     <masterLabel>WSM - ALF - Agent: Get Report Type Columns</masterLabel>
