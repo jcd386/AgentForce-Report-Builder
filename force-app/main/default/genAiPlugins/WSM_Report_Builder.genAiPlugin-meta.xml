@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <canEscalate>false</canEscalate>
-    <description>Builds native Salesforce reports on demand. Discovers report types and columns, then creates reports via the Analytics API. Supports tabular, summary, and matrix formats with filters, filter logic, groupings, date granularity, sorting, date filters, scope, cross-filters, charts, bucket fields, row-level formulas, custom summary formulas, top-N row limits, and folder placement.</description>
+    <description>Builds native Salesforce reports on demand. Discovers report types and columns, then creates reports via the Analytics API. Supports tabular, summary, and matrix formats with filters, filter logic, groupings, date granularity, sorting, date filters, scope, cross-filters, bucket fields, row-level formulas, custom summary formulas, and folder placement.</description>
     <developerName>WSM_Report_Builder</developerName>
     <genAiFunctions>
         <functionName>WSM_Agent_List_Report_Types</functionName>
