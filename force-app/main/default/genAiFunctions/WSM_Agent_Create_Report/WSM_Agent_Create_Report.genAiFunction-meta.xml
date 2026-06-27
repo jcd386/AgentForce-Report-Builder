@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Creates a native Salesforce report via the Analytics API. Requires: reportName, reportType (from List Report Types), columns (from Get Report Type Columns). Supports three formats: TABULAR (default), SUMMARY (with groupingsDown), MATRIX (with groupingsDown and groupingsAcross). Optional: single filter (filterColumn/filterOperator/filterValue), multi-filter (filtersJson), dateFilter (e.g., CLOSE_DATE:THIS_FISCAL_YEAR), scope (user/organization), folderName. Returns reportUrl, reportId, reportPath, reportName, success, errorMessage.</description>
+    <description>Creates a native Salesforce report via the Analytics API. Requires: reportName, reportType (from List Report Types), columns (from Get Report Type Columns). Supports TABULAR, SUMMARY, MATRIX formats with groupings (dateGranularity, sortOrder). Filtering: single filter, multi-filter (filtersJson), filter logic (reportBooleanFilter), cross-filters (crossFiltersJson), dateFilter. Options: scope, folderName. Advanced: bucketsJson, customDetailFormulasJson, customSummaryFormulaJson.</description>
     <invocationTarget>WSM_ALF_Agent_Create_Report</invocationTarget>
     <invocationTargetType>flow</invocationTargetType>
     <masterLabel>WSM - ALF - Agent: Create Report</masterLabel>

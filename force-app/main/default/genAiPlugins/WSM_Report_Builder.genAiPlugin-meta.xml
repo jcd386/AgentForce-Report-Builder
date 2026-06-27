@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <canEscalate>false</canEscalate>
-    <description>Builds native Salesforce reports on demand. When a user asks for a report, this topic discovers the correct report type and available columns, then creates the report using the Analytics API. It handles tabular, summary, and matrix formats with filters, groupings, date filters, scope, and folder placement.</description>
+    <description>Builds native Salesforce reports on demand. Discovers report types and columns, then creates reports via the Analytics API. Supports tabular, summary, and matrix formats with filters, filter logic, groupings, date granularity, sorting, date filters, scope, cross-filters, charts, bucket fields, row-level formulas, custom summary formulas, top-N row limits, and folder placement.</description>
     <developerName>WSM_Report_Builder</developerName>
     <genAiFunctions>
         <functionName>WSM_Agent_List_Report_Types</functionName>
@@ -25,6 +25,31 @@ REPORT FORMATS:
 - TABULAR (default): Flat list of records. Use when no grouping is needed.
 - SUMMARY: Grouped rows with subtotals. Set reportFormat=&quot;SUMMARY&quot; and provide groupingsDown (comma-separated column API names, max 3). Use when the user says &quot;group by&quot;, &quot;by category&quot;, &quot;by status&quot;, etc.
 - MATRIX: Row and column groupings. Set reportFormat=&quot;MATRIX&quot; and provide both groupingsDown and groupingsAcross. Use when the user wants a cross-tab or pivot-style view.
+
+DATE GROUPING:
+- When grouping by a date field (CLOSE_DATE, CREATED_DATE, etc.), set dateGranularity to control grouping level: Day, Month, Quarter, Year, FiscalQuarter, FiscalYear. Default is None (individual dates).
+- Example: user says &quot;by month&quot; → dateGranularity=&quot;Month&quot;. User says &quot;by fiscal quarter&quot; → dateGranularity=&quot;FiscalQuarter&quot;.
+
+SORTING:
+- Use sortOrder=&quot;Desc&quot; for descending groupings (default is Asc).
+- For &quot;top accounts by revenue&quot;, use sortOrder=&quot;Desc&quot; with groupingsDown on the relevant field.
+
+FILTER LOGIC:
+- When using multiple filters, default is AND. For OR or mixed logic, set reportBooleanFilter (e.g., &quot;(1 OR 2) AND 3&quot;).
+- Numbers reference the position in the filters list (1-based).
+
+CROSS-FILTERS:
+- For &quot;Accounts WITH Opportunities&quot; or &quot;Contacts WITHOUT Cases&quot;, use crossFiltersJson.
+- includesObject=true means WITH (has related records), false means WITHOUT.
+
+BUCKET FIELDS (advanced):
+- Use bucketsJson to group picklist or numeric values into categories. Reference the bucket by developerName in columns or groupings.
+
+ROW-LEVEL FORMULAS (advanced):
+- Use customDetailFormulasJson for calculated columns (e.g., date difference, concatenation). Reference as CDF1, CDF2 in detail columns.
+
+CUSTOM SUMMARY FORMULAS (advanced):
+- Use customSummaryFormulaJson for aggregate calculations (e.g., win rate, weighted average). Only for SUMMARY/MATRIX reports.
 
 IMPORTANT RULES:
 - Always start with List Report Types — never guess a report type API name.
@@ -67,15 +92,28 @@ Creates a native Salesforce report via the Analytics API.
 
 Required inputs: reportName, reportType (from List Report Types), columns (from Get Report Type Columns).
 
-Optional inputs:
+Optional inputs — Format &amp; Grouping:
 - reportFormat: TABULAR (default), SUMMARY, or MATRIX
 - groupingsDown: comma-separated columns for row grouping (required for SUMMARY/MATRIX)
 - groupingsAcross: comma-separated columns for column grouping (MATRIX only)
+- dateGranularity: Day, Month, Quarter, Year, FiscalQuarter, FiscalYear, None (default)
+- sortOrder: Asc (default) or Desc for groupings
+
+Optional inputs — Filtering:
 - filterColumn/filterOperator/filterValue: single filter
 - filtersJson: JSON array for multiple filters, e.g. [{&quot;column&quot;:&quot;STATUS&quot;,&quot;operator&quot;:&quot;equals&quot;,&quot;value&quot;:&quot;Closed&quot;}]
+- reportBooleanFilter: filter logic string, e.g. &quot;(1 OR 2) AND 3&quot;
 - dateFilter: standard date range, format &quot;FIELD:RANGE&quot; (e.g., &quot;CLOSE_DATE:THIS_FISCAL_YEAR&quot;)
+- crossFiltersJson: JSON array for WITH/WITHOUT related records
+
+Optional inputs — Scope &amp; Placement:
 - scope: &quot;user&quot; (my records), &quot;team&quot;, or &quot;organization&quot; (all records, default)
 - folderName: report folder name (defaults to user&apos;s private folder)
+
+Optional inputs — Advanced:
+- bucketsJson: JSON array of bucket field definitions
+- customDetailFormulasJson: JSON array of row-level formulas (referenced as CDF1, CDF2)
+- customSummaryFormulaJson: JSON object for aggregate formula (SUMMARY/MATRIX only)
 
 Returns: reportUrl (clickable link), reportId, reportPath, reportName, success, errorMessage.</description>
         <developerName>instruction_3</developerName>

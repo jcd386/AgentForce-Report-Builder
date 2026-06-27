@@ -93,6 +93,55 @@ public with sharing class AgentCreateReport {
             description='Name of the report folder to save the report in. Leave blank for the user\'s private reports folder.'
         )
         public String folderName;
+
+        @InvocableVariable(
+            required=false
+            label='Date Granularity'
+            description='Granularity for date groupings. Values: Day, Month, Quarter, Year, FiscalQuarter, FiscalYear, None (default). Applied to all date-type groupings in groupingsDown and groupingsAcross.'
+        )
+        public String dateGranularity;
+
+        @InvocableVariable(
+            required=false
+            label='Sort Order'
+            description='Sort direction for groupings. Values: Asc (default) or Desc. Applied to all groupings in groupingsDown and groupingsAcross.'
+        )
+        public String sortOrder;
+
+        @InvocableVariable(
+            required=false
+            label='Filter Logic'
+            description='Boolean logic for combining multiple filters. Uses 1-based indices matching filter order. Example: "(1 OR 2) AND 3". Without this, all filters are combined with AND.'
+        )
+        public String reportBooleanFilter;
+
+        @InvocableVariable(
+            required=false
+            label='Cross-Filters JSON'
+            description='JSON array of cross-filter objects for related-record filtering. Each: {"primaryEntityField":"ACCOUNT_ID","relatedEntity":"Opportunity","relatedEntityJoinField":"AccountId","includesObject":true}. includesObject=true means WITH, false means WITHOUT. Optional "criteria" array for sub-filters.'
+        )
+        public String crossFiltersJson;
+
+        @InvocableVariable(
+            required=false
+            label='Buckets JSON'
+            description='JSON array of bucket field definitions. Each: {"bucketType":"picklist","developerName":"BucketField_1","label":"Region","sourceColumnName":"BILLING_STATE","otherBucketLabel":"Other","values":[{"label":"West","sourceDimensionValues":["CA","OR","WA"]}]}. Reference in columns/groupings by developerName.'
+        )
+        public String bucketsJson;
+
+        @InvocableVariable(
+            required=false
+            label='Custom Detail Formulas JSON'
+            description='JSON array of row-level formula definitions. Each: {"label":"Days Open","formula":"TODAY() - CREATED_DATE","formulaType":"number","decimalPlaces":0}. Referenced in columns as CDF1, CDF2, etc.'
+        )
+        public String customDetailFormulasJson;
+
+        @InvocableVariable(
+            required=false
+            label='Custom Summary Formula JSON'
+            description='JSON object for a custom summary formula. Example: {"label":"Win Rate","formula":"CLOSED_WON:SUM / RowCount:SUM * 100","formulaType":"percent","decimalPlaces":1,"downGroupType":"all","acrossGroupType":"grand_total"}. Only for SUMMARY/MATRIX reports.'
+        )
+        public String customSummaryFormulaJson;
     }
 
     public class Output {
@@ -248,14 +297,17 @@ public with sharing class AgentCreateReport {
         }
         gen.writeEndArray();
 
+        String grpSortOrder = String.isBlank(inp.sortOrder) ? 'Asc' : inp.sortOrder.trim();
+        String grpDateGran = String.isBlank(inp.dateGranularity) ? 'None' : inp.dateGranularity.trim();
+
         if (!groupsDown.isEmpty()) {
             gen.writeFieldName('groupingsDown');
             gen.writeStartArray();
             for (String g : groupsDown) {
                 gen.writeStartObject();
                 gen.writeStringField('name', g);
-                gen.writeStringField('sortOrder', 'Asc');
-                gen.writeStringField('dateGranularity', 'None');
+                gen.writeStringField('sortOrder', grpSortOrder);
+                gen.writeStringField('dateGranularity', grpDateGran);
                 gen.writeEndObject();
             }
             gen.writeEndArray();
@@ -268,8 +320,8 @@ public with sharing class AgentCreateReport {
             for (String g : groupsAcross) {
                 gen.writeStartObject();
                 gen.writeStringField('name', g);
-                gen.writeStringField('sortOrder', 'Asc');
-                gen.writeStringField('dateGranularity', 'None');
+                gen.writeStringField('sortOrder', grpSortOrder);
+                gen.writeStringField('dateGranularity', grpDateGran);
                 gen.writeEndObject();
             }
             gen.writeEndArray();
@@ -289,6 +341,10 @@ public with sharing class AgentCreateReport {
             gen.writeEndArray();
         }
 
+        if (String.isNotBlank(inp.reportBooleanFilter)) {
+            gen.writeStringField('reportBooleanFilter', inp.reportBooleanFilter);
+        }
+
         if (String.isNotBlank(inp.dateFilter) && inp.dateFilter.contains(':')) {
             List<String> parts = inp.dateFilter.split(':', 2);
             gen.writeFieldName('standardDateFilter');
@@ -298,6 +354,62 @@ public with sharing class AgentCreateReport {
             gen.writeNullField('startDate');
             gen.writeNullField('endDate');
             gen.writeEndObject();
+        }
+
+        if (String.isNotBlank(inp.crossFiltersJson)) {
+            List<Object> crossFilters = (List<Object>) JSON.deserializeUntyped(inp.crossFiltersJson);
+            gen.writeFieldName('crossFilters');
+            gen.writeStartArray();
+            for (Object cfObj : crossFilters) {
+                Map<String, Object> cf = (Map<String, Object>) cfObj;
+                gen.writeStartObject();
+                gen.writeStringField('primaryEntityField', (String) cf.get('primaryEntityField'));
+                gen.writeBooleanField('includesObject', cf.get('includesObject') == true);
+                gen.writeStringField('relatedEntity', (String) cf.get('relatedEntity'));
+                gen.writeStringField('relatedEntityJoinField', (String) cf.get('relatedEntityJoinField'));
+                if (cf.containsKey('criteria')) {
+                    List<Object> criteria = (List<Object>) cf.get('criteria');
+                    gen.writeFieldName('criteria');
+                    gen.writeStartArray();
+                    for (Object crit : criteria) {
+                        Map<String, Object> c = (Map<String, Object>) crit;
+                        gen.writeStartObject();
+                        gen.writeStringField('column', (String) c.get('column'));
+                        gen.writeStringField('operator', (String) c.get('operator'));
+                        gen.writeStringField('value', String.valueOf(c.get('value')));
+                        gen.writeEndObject();
+                    }
+                    gen.writeEndArray();
+                }
+                gen.writeEndObject();
+            }
+            gen.writeEndArray();
+        }
+
+        if (String.isNotBlank(inp.bucketsJson)) {
+            List<Object> buckets = (List<Object>) JSON.deserializeUntyped(inp.bucketsJson);
+            gen.writeFieldName('buckets');
+            gen.writeStartArray();
+            for (Object bkt : buckets) {
+                gen.writeObject(bkt);
+            }
+            gen.writeEndArray();
+        }
+
+        if (String.isNotBlank(inp.customDetailFormulasJson)) {
+            List<Object> cdfs = (List<Object>) JSON.deserializeUntyped(inp.customDetailFormulasJson);
+            gen.writeFieldName('customDetailFormula');
+            gen.writeStartArray();
+            for (Object cdf : cdfs) {
+                gen.writeObject(cdf);
+            }
+            gen.writeEndArray();
+        }
+
+        if (String.isNotBlank(inp.customSummaryFormulaJson)) {
+            Object csf = JSON.deserializeUntyped(inp.customSummaryFormulaJson);
+            gen.writeFieldName('customSummaryFormula');
+            gen.writeObject(csf);
         }
 
         if (String.isNotBlank(folderId)) {

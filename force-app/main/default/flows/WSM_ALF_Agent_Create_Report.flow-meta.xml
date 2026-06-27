@@ -92,6 +92,48 @@
                 <elementReference>folderName</elementReference>
             </value>
         </inputParameters>
+        <inputParameters>
+            <name>dateGranularity</name>
+            <value>
+                <elementReference>dateGranularity</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>sortOrder</name>
+            <value>
+                <elementReference>sortOrder</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>reportBooleanFilter</name>
+            <value>
+                <elementReference>reportBooleanFilter</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>crossFiltersJson</name>
+            <value>
+                <elementReference>crossFiltersJson</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>bucketsJson</name>
+            <value>
+                <elementReference>bucketsJson</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>customDetailFormulasJson</name>
+            <value>
+                <elementReference>customDetailFormulasJson</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>customSummaryFormulaJson</name>
+            <value>
+                <elementReference>customSummaryFormulaJson</elementReference>
+            </value>
+        </inputParameters>
         <nameSegment>AgentCreateReport</nameSegment>
         <outputParameters>
             <assignToReference>success</assignToReference>
@@ -282,6 +324,62 @@
     <variables>
         <description>Name of the report folder to save the report in. Leave blank for the user's private reports folder.</description>
         <name>folderName</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Granularity for date groupings: Day, Month, Quarter, Year, FiscalQuarter, FiscalYear, None (default). Only affects date/datetime grouping columns.</description>
+        <name>dateGranularity</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Sort direction for all groupings: Asc (default) or Desc.</description>
+        <name>sortOrder</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>Boolean logic for combining filters. Uses 1-based indices. Example: &apos;(1 OR 2) AND 3&apos;. Without this, all filters use AND.</description>
+        <name>reportBooleanFilter</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>JSON array of cross-filter objects for related-record filtering. Example: [{&quot;primaryEntityField&quot;:&quot;ACCOUNT_ID&quot;,&quot;relatedEntity&quot;:&quot;Opportunity&quot;,&quot;relatedEntityJoinField&quot;:&quot;AccountId&quot;,&quot;includesObject&quot;:true}]. includesObject true=WITH, false=WITHOUT.</description>
+        <name>crossFiltersJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>JSON array of bucket field definitions. Reference in columns/groupings by developerName.</description>
+        <name>bucketsJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>JSON array of row-level formulas. Each: {&quot;label&quot;:&quot;Days Open&quot;,&quot;formula&quot;:&quot;TODAY() - CREATED_DATE&quot;,&quot;formulaType&quot;:&quot;number&quot;,&quot;decimalPlaces&quot;:0}. Referenced as CDF1, CDF2.</description>
+        <name>customDetailFormulasJson</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <description>JSON object for a custom summary formula. Only for SUMMARY/MATRIX reports.</description>
+        <name>customSummaryFormulaJson</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>

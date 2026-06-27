@@ -317,6 +317,82 @@ public class AgentCreateReportTest {
         out.errorMessage = null;
     }
 
+    @IsTest
+    static void testDateGranularity() {
+        Test.setMock(HttpCalloutMock.class, new MockSuccess());
+
+        AgentCreateReport.Input inp = new AgentCreateReport.Input();
+        inp.reportName = 'Opps by Close Month';
+        inp.reportType = 'Opportunity';
+        inp.columns = 'OPPORTUNITY.NAME,AMOUNT';
+        inp.reportFormat = 'SUMMARY';
+        inp.groupingsDown = 'CLOSE_DATE';
+        inp.dateGranularity = 'Month';
+
+        Test.startTest();
+        List<AgentCreateReport.Output> results = AgentCreateReport.createReport(
+            new List<AgentCreateReport.Input>{ inp }
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].success);
+
+        // Verify the request body contains the granularity value
+        List<Object> filters = new List<Object>();
+        String body = AgentCreateReport.buildReportBody(inp, 'SUMMARY', filters, null);
+        System.assert(body.contains('Month'), 'Expected body to contain "Month" for dateGranularity');
+    }
+
+    @IsTest
+    static void testSortOrderDesc() {
+        Test.setMock(HttpCalloutMock.class, new MockSuccess());
+
+        AgentCreateReport.Input inp = new AgentCreateReport.Input();
+        inp.reportName = 'Opps Desc by Stage';
+        inp.reportType = 'Opportunity';
+        inp.columns = 'OPPORTUNITY.NAME,AMOUNT';
+        inp.reportFormat = 'SUMMARY';
+        inp.groupingsDown = 'STAGE_NAME';
+        inp.sortOrder = 'Desc';
+
+        Test.startTest();
+        List<AgentCreateReport.Output> results = AgentCreateReport.createReport(
+            new List<AgentCreateReport.Input>{ inp }
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].success);
+
+        List<Object> filters = new List<Object>();
+        String body = AgentCreateReport.buildReportBody(inp, 'SUMMARY', filters, null);
+        System.assert(body.contains('Desc'), 'Expected body to contain "Desc" for sortOrder');
+    }
+
+    @IsTest
+    static void testFilterLogic() {
+        Test.setMock(HttpCalloutMock.class, new MockSuccess());
+
+        AgentCreateReport.Input inp = new AgentCreateReport.Input();
+        inp.reportName = 'Filter Logic Report';
+        inp.reportType = 'Opportunity';
+        inp.columns = 'OPPORTUNITY.NAME,AMOUNT';
+        inp.filtersJson = '[{"column":"STAGE_NAME","operator":"equals","value":"Closed Won"},{"column":"CLOSE_DATE","operator":"greaterThan","value":"2026-01-01"}]';
+        inp.reportBooleanFilter = '1 OR 2';
+
+        Test.startTest();
+        List<AgentCreateReport.Output> results = AgentCreateReport.createReport(
+            new List<AgentCreateReport.Input>{ inp }
+        );
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].success);
+
+        AgentCreateReport.Output dummyOut = new AgentCreateReport.Output();
+        List<Object> filters = AgentCreateReport.buildFilters(inp, dummyOut);
+        String body = AgentCreateReport.buildReportBody(inp, 'TABULAR', filters, null);
+        System.assert(body.contains('reportBooleanFilter'), 'Expected body to contain "reportBooleanFilter"');
+    }
+
     // ---- Helpers ----
 
     private static AgentCreateReport.Input buildInput(String name, String reportType, String columns) {
