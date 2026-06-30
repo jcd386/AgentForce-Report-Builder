@@ -17,7 +17,7 @@
 
 1. DISCOVER THE REPORT TYPE: Call &quot;List Report Types&quot; with a keyword matching the user&apos;s request (e.g., &quot;Opportunity&quot;, &quot;Case&quot;, &quot;Lead&quot;). If multiple types match, present them and confirm which one to use.
 
-2. DISCOVER AVAILABLE COLUMNS: Call &quot;Get Report Type Columns&quot; with the chosen report type API name. Use the filterKeyword input to narrow results when you know what the user wants (e.g., filterKeyword=&quot;Amount&quot; for revenue-related columns). Select ONLY the columns relevant to what the user asked for — never pass all columns.
+2. DISCOVER AVAILABLE COLUMNS: Call &quot;Get Report Type Columns&quot; with the chosen report type API name and NO filterKeyword on your first call. Review the full column list to find the columns matching what the user asked for. Report column API names are VERY different from field API names — you MUST read the returned labels to match columns. Examples: Phone field = PHONE1, Website field = URL, Account Name = ACCOUNT_NAME, Contact Name = CONTACT_NAME or FULL_NAME. NEVER assume a column does not exist — if you cannot find it in the results, try a second call with a filterKeyword. Only pass the relevant apiName values to Create Report.
 
 3. CREATE THE REPORT: Call &quot;Create Salesforce Report&quot; with the report name, report type, selected columns, and any filters, groupings, or options the user requested.
 
@@ -53,7 +53,7 @@ CUSTOM SUMMARY FORMULAS (advanced):
 
 IMPORTANT RULES:
 - Always start with List Report Types — never guess a report type API name.
-- Always call Get Report Type Columns before creating — column API names in reports use a different format than field API names (e.g., ACCOUNT.NAME not Account.Name).
+- Always call Get Report Type Columns before creating — column API names in reports are COMPLETELY DIFFERENT from field API names. Common surprises: Phone → PHONE1, Website → URL, Account Name → ACCOUNT_NAME, Created Date → CREATED_DATE, Close Date → CLOSE_DATE. Always read the label field in the response to find the right column. Never tell the user a column does not exist without first calling Get Columns without a filterKeyword and reviewing the full list.
 - Group-by columns are automatically excluded from detail columns — no need to remove them manually.
 - For &quot;my&quot; reports, set scope to &quot;user&quot;. For &quot;all&quot; or org-wide reports, use &quot;organization&quot; (default).
 - For date-scoped reports, use dateFilter (e.g., &quot;CLOSE_DATE:THIS_FISCAL_YEAR&quot;). Without a dateFilter, the report shows all dates.
@@ -79,7 +79,7 @@ Lists available Salesforce report types. Use this as the FIRST step when buildin
     <genAiPluginInstructions>
         <description>## Get Report Type Columns
 
-Returns valid column API names for a report type. Call AFTER List Report Types and BEFORE Create Report. Use filterKeyword to narrow results (e.g., &quot;Amount&quot;, &quot;Date&quot;, &quot;Status&quot;) — this reduces response size and helps you pick the right columns faster. Use maxResults to limit the number of columns returned. Pick only the columns the user needs — do not pass all columns to Create Report.</description>
+Returns valid column API names for a report type. Call AFTER List Report Types and BEFORE Create Report. On your FIRST call, do NOT use filterKeyword — get the full list so you can see all available columns and their labels. Report column API names look nothing like field API names (e.g., Phone = PHONE1, Website = URL). Use the label field in the response to match columns to what the user asked for. Only use filterKeyword on a SECOND call if the full list was too large to find what you need. Pick only the columns the user needs — do not pass all columns to Create Report.</description>
         <developerName>instruction_2</developerName>
         <language xsi:nil="true"/>
         <masterLabel>Get Report Type Columns</masterLabel>
