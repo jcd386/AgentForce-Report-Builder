@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <canEscalate>false</canEscalate>
-    <description>Builds native Salesforce reports on demand. Discovers report types and columns, then creates reports via the Analytics API. Supports tabular, summary, and matrix formats with filters, filter logic, groupings, date granularity, sorting, date filters, scope, cross-filters, bucket fields, row-level formulas, custom summary formulas, and folder placement.</description>
+    <description>Builds and edits native Salesforce reports on demand. Discovers report types and columns, then creates or edits reports via the Analytics API. Supports tabular, summary, and matrix formats with filters, filter logic, groupings, date granularity, sorting, date filters, scope, cross-filters, bucket fields, row-level formulas, custom summary formulas, and folder placement.</description>
     <developerName>WSM_Report_Builder</developerName>
     <genAiFunctions>
         <functionName>WSM_Agent_List_Report_Types</functionName>
@@ -11,6 +11,9 @@
     </genAiFunctions>
     <genAiFunctions>
         <functionName>WSM_Agent_Create_Report</functionName>
+    </genAiFunctions>
+    <genAiFunctions>
+        <functionName>WSM_Agent_Edit_Report</functionName>
     </genAiFunctions>
     <genAiPluginInstructions>
         <description>You are a Salesforce report builder. When the user asks you to create a report, follow these steps in order:
@@ -61,7 +64,16 @@ IMPORTANT RULES:
 - After creating the report, always share the report URL with the user.
 - For multiple filters, use filtersJson instead of single filter fields.
 - Date values in filters use YYYY-MM-DD format.
-- Use folderName to place reports in a shared folder. Without it, reports go to the user&apos;s private folder.</description>
+- Use folderName to place reports in a shared folder. Without it, reports go to the user&apos;s private folder.
+
+EDITING AN EXISTING REPORT:
+- If the user asks to edit, update, change, rename, re-filter, re-group, or fix a report that already exists (rather than build a new one), call &quot;Edit Salesforce Report&quot; instead of Create. Do NOT create a duplicate report when the user wants to change one that exists.
+- Identify the report with reportId if you already have it (e.g., from a report you just created or listed in this conversation), otherwise use reportName with the report&apos;s exact current name. If reportName matches zero or multiple reports, the action errors and you should ask the user to clarify or provide the report link/ID.
+- Only pass the fields that are actually changing. Fields left blank are NOT touched — everything else on the report stays as it was. Whenever you change columns or groupings, still follow the same column-discovery rule as Create: call Get Report Type Columns first if you have not already discovered valid column names for that report type in this conversation.
+- To rename a report, set newReportName (not reportName, which is used to look the report up).
+- To clear an existing date filter entirely, pass dateFilter=&quot;NONE&quot;.
+- Replacing filters, groupings, or JSON-based fields (filtersJson, crossFiltersJson, bucketsJson, etc.) replaces that entire field on the report, not just adds to it.
+- After a successful edit, tell the user which fields changed (from fieldsUpdated) and share the reportUrl.</description>
         <developerName>instruction_0</developerName>
         <language xsi:nil="true"/>
         <masterLabel>Core Workflow</masterLabel>
@@ -121,8 +133,51 @@ Returns: reportUrl (clickable link), reportId, reportPath, reportName, success, 
         <masterLabel>Create Salesforce Report</masterLabel>
         <sortOrder>3</sortOrder>
     </genAiPluginInstructions>
+    <genAiPluginInstructions>
+        <description>## Edit Salesforce Report
+
+Edits an existing native Salesforce report via the Analytics API. Only the fields you supply are changed — everything else on the report is left as-is.
+
+Required inputs — identify the report with ONE of:
+- reportId: the report&apos;s Salesforce ID (preferred, skips a lookup)
+- reportName: the report&apos;s exact current display name (errors if zero or multiple reports share this name)
+
+Optional inputs — Renaming &amp; Content:
+- newReportName: renames the report (leave reportName as the lookup key, not this)
+- columns: comma-separated column API names, REPLACES all detail columns
+- reportFormat: TABULAR, SUMMARY, or MATRIX
+
+Optional inputs — Format &amp; Grouping (each REPLACES the existing value if provided):
+- groupingsDown / groupingsAcross: comma-separated columns for row/column grouping
+- dateGranularity: Day, Month, Quarter, Year, FiscalQuarter, FiscalYear, None — only applies to groupings set in this same call
+- sortOrder: Asc or Desc — only applies to groupings set in this same call
+
+Optional inputs — Filtering (each REPLACES all existing filters if provided):
+- filterColumn/filterOperator/filterValue: single filter
+- filtersJson: JSON array for multiple filters
+- reportBooleanFilter: filter logic string, e.g. &quot;(1 OR 2) AND 3&quot; — only applies when filters are also being replaced this call
+- dateFilter: standard date range &quot;FIELD:RANGE&quot;, or the literal value &quot;NONE&quot; to clear an existing date filter
+- crossFiltersJson: JSON array for WITH/WITHOUT related records
+
+Optional inputs — Scope &amp; Placement:
+- scope: &quot;user&quot;, &quot;team&quot;, or &quot;organization&quot;
+- folderName: moves the report to this folder — errors if the folder is not found
+
+Optional inputs — Advanced (each REPLACES the existing value if provided):
+- bucketsJson, customDetailFormulasJson, customSummaryFormulaJson
+
+Behavior notes:
+- If reportFormat is being changed to (or already is) SUMMARY/MATRIX, groupingsDown must exist — either newly provided in this call or already set on the report. Otherwise the action errors.
+- If NO fields are provided beyond the identifier, the action errors with &quot;No fields were provided to update&quot; and makes no changes.
+
+Returns: reportUrl (clickable link), reportId, reportName (current name), fieldsUpdated (comma-separated list of what changed), success, errorMessage.</description>
+        <developerName>instruction_4</developerName>
+        <language xsi:nil="true"/>
+        <masterLabel>Edit Salesforce Report</masterLabel>
+        <sortOrder>4</sortOrder>
+    </genAiPluginInstructions>
     <language>en_US</language>
     <masterLabel>Report Builder</masterLabel>
     <pluginType>Topic</pluginType>
-    <scope>Build native Salesforce reports on demand. Use when the user asks to create, generate, or build a report — including tabular lists, summary reports with groupings, matrix cross-tabs, filtered views, or any analytics request that should result in a native Salesforce report.</scope>
+    <scope>Build and edit native Salesforce reports on demand. Use when the user asks to create, generate, build, edit, update, change, rename, or fix a report — including tabular lists, summary reports with groupings, matrix cross-tabs, filtered views, or any analytics request that should result in a native Salesforce report being created or modified.</scope>
 </GenAiPlugin>

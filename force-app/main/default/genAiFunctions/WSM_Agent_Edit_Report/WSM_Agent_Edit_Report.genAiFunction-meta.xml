@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Edits an existing native Salesforce report via the Analytics API. Identify the report with reportId (preferred) or reportName. Only the fields you supply are changed — everything else on the report is left as-is. Supports renaming, changing columns, format (TABULAR/SUMMARY/MATRIX), groupings, filters (single, multi, or boolean logic), date filters (including clearing with "NONE"), scope, folder, cross-filters, buckets, and formulas.</description>
+    <invocationTarget>WSM_ALF_Agent_Edit_Report</invocationTarget>
+    <invocationTargetType>flow</invocationTargetType>
+    <masterLabel>WSM - ALF - Agent: Edit Report</masterLabel>
+</GenAiFunction>
