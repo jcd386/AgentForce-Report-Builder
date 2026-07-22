@@ -68,6 +68,9 @@ Thin flow wrappers around the Apex actions — these are what the agent actually
 2. Assign the **WSM Report Builder Agent** permission set to your agent's running user
 3. In Agent Builder, add the existing **Report Builder** topic to your agent — it's pre-configured with all four actions and their instructions, no manual setup needed
 4. Activate the agent
+5. Add your org's own domains to **Trusted URLs** (Setup → Security → Trusted URLs) so the agent can return report links. Agentforce redacts any URL in an agent response whose domain isn't on the trusted list (shown as `URL_Redacted`), and the report URL these actions emit uses the `URL.getOrgDomainUrl()` form. Add both, Context **All**:
+   - `https://<mydomain>.my.salesforce.com` — the domain in the emitted report URL (**required**)
+   - `https://<mydomain>.lightning.force.com` — the domain Lightning redirects to when the link is opened
 
 ### Required Permissions
 
