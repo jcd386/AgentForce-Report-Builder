@@ -79,6 +79,15 @@ The permission set grants these automatically. If assigning access manually inst
 - **Run Reports** (`RunReports`)
 - Access to the Analytics API (enabled by default in most orgs)
 
+## Troubleshooting
+
+**The agent dumps raw output fields (reportId, path, `true`) instead of a clean link.**
+Each action returns several outputs — `reportUrl` and the report name are meant for the user; `reportId`, `reportPath`, and `success` are for the agent's own logic (e.g. so it can edit the report you just made). By default every output is marked *displayable*, so the agent lists all of them.
+
+Fix: set the internal outputs to **not** display in the conversation, keeping them available to the planner.
+- **Atlas / multi-agent bundles (`GenAiPlannerBundle`, Agent Script agents):** the topic and its actions are **embedded as a copy inside the agent bundle** when you add the topic — editing the standalone topic does nothing to a live agent. Edit the bundle's `localActions/.../<action>/output/schema.json` and set `"copilotAction:isDisplayable": false` on `reportId`, `reportPath`, `success` (Create) and `editedReportId`, `success` (Edit). Leave `"copilotAction:isUsedByPlanner": true` so follow-up edits still work. Redeploy the bundle.
+- **Classic agents:** in Agent Builder, open the action and toggle **Show in conversation** off for those same outputs.
+
 ## Action Field Reference
 
 ### Create Salesforce Report (`AgentCreateReport`)
