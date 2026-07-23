@@ -239,9 +239,10 @@ public with sharing class AgentEditReport {
             if (res.getStatusCode() == 200 || res.getStatusCode() == 201) {
                 Map<String, Object> result = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
                 Map<String, Object> resultMeta = (Map<String, Object>) result.get('reportMetadata');
+                String uiBaseUrl = baseUrl.replace('.my.salesforce.com', '.lightning.force.com');
                 out.success = true;
                 out.reportId = reportId;
-                out.reportUrl = baseUrl + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
+                out.reportUrl = uiBaseUrl + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportName = resultMeta != null && resultMeta.get('name') != null
                     ? (String) resultMeta.get('name')
                     : (String) metadata.get('name');

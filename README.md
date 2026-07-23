@@ -68,9 +68,10 @@ Thin flow wrappers around the Apex actions — these are what the agent actually
 2. Assign the **WSM Report Builder Agent** permission set to your agent's running user
 3. In Agent Builder, add the existing **Report Builder** topic to your agent — it's pre-configured with all four actions and their instructions, no manual setup needed
 4. Activate the agent
-5. Add your org's own domains to **Trusted URLs** (Setup → Security → Trusted URLs) so the agent can return report links. Agentforce redacts any URL in an agent response whose domain isn't on the trusted list (shown as `URL_Redacted`), and the report URL these actions emit uses the `URL.getOrgDomainUrl()` form. Add both, Context **All**:
-   - `https://<mydomain>.my.salesforce.com` — the domain in the emitted report URL (**required**)
-   - `https://<mydomain>.lightning.force.com` — the domain Lightning redirects to when the link is opened
+5. Add your org's Lightning domain to **Trusted URLs** (Setup → Security → Trusted URLs) so the agent can return report links. Agentforce redacts any URL in an agent response whose domain isn't on the trusted list (shown as `URL_Redacted`). The actions emit report links on the Lightning Experience domain. Add, Context **All**:
+   - `https://<mydomain>.lightning.force.com` — the domain in the emitted report URL (**required**)
+
+   (The Analytics API callout runs server-side against `my.salesforce.com` — that's an Apex self-callout, not subject to Trusted URL redaction, so it needs no entry.)
 
 ### Required Permissions
 
@@ -87,6 +88,9 @@ Each action returns several outputs — `reportUrl` and the report name are mean
 Fix: set the internal outputs to **not** display in the conversation, keeping them available to the planner.
 - **Atlas / multi-agent bundles (`GenAiPlannerBundle`, Agent Script agents):** the topic and its actions are **embedded as a copy inside the agent bundle** when you add the topic — editing the standalone topic does nothing to a live agent. Edit the bundle's `localActions/.../<action>/output/schema.json` and set `"copilotAction:isDisplayable": false` on `reportId`, `reportPath`, `success` (Create) and `editedReportId`, `success` (Edit). Leave `"copilotAction:isUsedByPlanner": true` so follow-up edits still work. Redeploy the bundle.
 - **Classic agents:** in Agent Builder, open the action and toggle **Show in conversation** off for those same outputs.
+
+**The agent shows a link with the wrong domain (e.g. `https://salesforce.com/lightning/r/Report/…`).**
+The agent rebuilt the URL from the `reportPath` output (the *relative* path `/lightning/r/Report/…`) and prepended a guessed host, instead of using the full `reportUrl`. Hiding `reportPath` from display isn't enough — while it's still marked `isUsedByPlanner`, the planner can see the relative path and reconstruct a URL. Set `reportPath` to **both** `"copilotAction:isDisplayable": false` **and** `"copilotAction:isUsedByPlanner": false` in the Create action's `output/schema.json` so the full `reportUrl` is the only link the planner has. (The actions emit `reportUrl` on the `lightning.force.com` domain; make sure that domain is in Trusted URLs per Setup step 5.)
 
 ## Action Field Reference
 

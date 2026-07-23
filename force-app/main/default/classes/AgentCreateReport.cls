@@ -241,9 +241,11 @@ public with sharing class AgentCreateReport {
                 patchDateFilter(result, reportEndpoint, sessionId, inp);
                 patchScope(reportEndpoint, sessionId, inp);
 
+                String uiBaseUrl = baseUrl.replace('.my.salesforce.com', '.lightning.force.com');
+
                 out.success = true;
                 out.reportId = reportId;
-                out.reportUrl = baseUrl + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
+                out.reportUrl = uiBaseUrl + '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportPath = '/lightning/r/Report/' + reportId + '/view?queryScope=userFolders';
                 out.reportName = (String) attrs.get('reportName');
                 if (inp.reportName != null && inp.reportName.length() > 40) {
